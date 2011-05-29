@@ -35,78 +35,61 @@ The database stores the following elements:
 
 The following structures are used to store the data:
 
-1. Data element: 
+1. Element (Content addressable map entry):
 	- hash (20 bytes)
-	- reference counter (4 bytes)
+	- forward pointer (8 bytes) to data/treap node
+	- reverse pointer (8 bytes) to treap node
+2. Data: 
 	- length (8 bytes)
 	- data (length bytes)
-2. Map element:  
-	- hash (20 bytes) 
-	- reference counter (4 bytes)
-	- root pointer (8 bytes)
-	- size (4 bytes)
-3. Treap node:   
-	- pointer list (16*8 bytes)
+3. Treap node (part of a set/map): 
+	- pointer list (16*8 bytes) to treap node/element
+4. Key value map entry:
+	- key pointer (8 bytes) to element
+	- value pointer (8 bytes) to treap node/element
 
-Each is stored in its own file? 
+Each is stored in its own file to allow the creation of repair tools.
 The most significant byte of a pointer is used to determine the file/structure it points to.
 
 Example
 -------
 There are two maps: one for forward lookups, one for reverse lookups. The following is stored:
 
-	1. {type: application, name: less}
-	2. {type: application, name: gcc}
+1. `s1 = {type: application, name: less}`
+2. `s2 = {type: application, name: gcc}`
 
 Which results in the following structures being stored. 
 
-	forward map: {
-		H("less"): "less"
-		H("name"): "name"
-		H("type"): "type"
-		H("application"): "application"
-		H("gcc"): "gcc"
-		H(1) -> 1
-		H(2) -> 2
+	name = element: { H("name"), data:"name", NULL }
+	type = element: { H("type"), data:"type", NULL }
+	less = element: { H("less"), data:"less", r_less }
+	gcc  = element: { H("gcc"),  data:"gcc",  r_gcc  }
+	application = element: { H("application"), data:"application", r_application }
+	s1 = element: { H(s1), m1, NULL }
+	s2 = element: { H(s2), m2, NULL }
+
+	root = set: {
+		name, type, less, gcc, application, s1, s2
 	}
 
-	object map (1): {
-		H("type"): "application"
-		H("name"): "less"
+	m1 = set: {
+		kv: {type -> application}
+		kv: {name -> less}
 	}
 
-	object map (2): {
-		H("type"): "application"
-		H("name"): "gcc"
+	m2 = set: {
+		kv: {type -> application}
+		kv: {name -> gcc}
 	}
 
-	reverse map: {
-		H("application"): 3
-		H("less"): 4
-		H("gcc"): 5
+	r_less = set: {
+		kv: {name -> set: {s1} }
 	}
 
-	reverse key map (3): {
-		H("type"): 6
+	r_gcc = set: {
+		kv: {name -> set: {s2} }
 	}
 
-	reverse key map (4): {
-		H("name"): 7
-	}
-
-	reverse key map (5): {
-		H("name"): 8
-	}
-
-	reverse object map (6): {
-		H(1) -> 1
-		H(2) -> 2
-	}
-
-	reverse object map (7): {
-		H(1) -> 1
-	}
-
-	reverse object map (8): {
-		H(2) -> 2
+	r_application = set: {
+		kv: {type -> set: {s1, s2} }
 	}
