@@ -50,7 +50,7 @@ static int create_trie(dagdb_pointer * ptr, dagdb_trie t) {
 		return -1;
 	ptr->type = DAGDB_TRIE;
 	ptr->address = pos;
-	printf(" +trie@%Lx",pos);
+	//printf(" +trie@%Lx",pos);
 	return 0;
 }
 
@@ -86,7 +86,7 @@ int dagdb_init(const char * root) {
 		int64_t pos = lseek(storage[i], 0, SEEK_END);
 		if (pos==-1) return -1;
 		size[i] = pos;
-		printf(" size(%s)=%Ld", dagdb_filenames[i], pos);
+		//printf(" size(%s)=%Ld", dagdb_filenames[i], pos);
 	}
 	if (dir!=AT_FDCWD) {
 		close(dir);
@@ -109,7 +109,7 @@ int dagdb_truncate() {
 		if (ftruncate(storage[i],0)==-1) return -1;
 	}
 	
-	printf(" Truncated_DB");
+	//printf(" Truncated_DB");
 	dagdb_pointer root;
 	if (create_trie(&root, empty_trie)==-1)
 		return -1;
@@ -255,7 +255,6 @@ static int insert(dagdb_pointer * result_location, dagdb_hash h, dagdb_pointer r
 	}
 	
 	error:
-	printf(" i=%d ", i);
 	// The nibbles in the hash are exhausted. There must be something wrong.
 	assert(0);
 	return -1;
