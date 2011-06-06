@@ -12,25 +12,11 @@
 #define compare_hash(s1, s2) memcmp((s1), (s2), sizeof(dagdb_hash))
 
 const char * hex = "0123456789abcdef";
-const int value[] = {['0'] = 0,1,2,3,4,5,6,7,8,9, ['a'] = 10,11,12,13,14,15};
-
-static void parse_hash(dagdb_hash h, char * t) {
-	int i;
-	for (i=0; i<20; i++) {
-		h[i] = value[(int)t[i*2]]*16 + value[(int)t[i*2+1]];
-	}
-}
-
-static void write_hash(char * t, dagdb_hash h) {
-	int i;
-	for (i=0; i<40; i++) {
-		t[i]=hex[dagdb_nibble(h,i)];
-	}
-	t[40]=0;
-}
 
 int main(int argc, char ** argv) {
 	printf(" === Testing DAGDB ===\n");
+	if (argc>1)
+		dagdb_set_log_function(printf);
 	
 	NEW_GROUP(functions)
 		NEW_TEST(nibble)
@@ -39,7 +25,7 @@ int main(int argc, char ** argv) {
 			dagdb_hash h;
 			// printf("%p, %p, %x\n", h[0], h[0]>>4, h[0]&0xf);
 			char * t = "0123456789abcdef000000003c3c3c3c2222dddd";
-			parse_hash(h, t);
+			dagdb_parse_hash(h, t);
 			for (i=0; i<40; i++) {
 				int v = t[i];
 				int w = dagdb_nibble(h, i);
@@ -49,10 +35,10 @@ int main(int argc, char ** argv) {
 		NEW_TEST(hash)
 			dagdb_hash h;
 			dagdb_hash hh;
-			parse_hash(hh, "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+			dagdb_parse_hash(hh, "da39a3ee5e6b4b0d3255bfef95601890afd80709");
 			dagdb_get_hash(h, "", 0);
 			char calc[41];
-			write_hash(calc, hh);
+			dagdb_write_hash(calc, hh);
 			CHECK(compare_hash(h,hh)==0,"Wrong hash: %s",calc);
 		END_TEST
 	END_GROUP

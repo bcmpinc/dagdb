@@ -40,7 +40,10 @@ typedef struct {
 } dagdb_kvpair;
 
 int dagdb_nibble(dagdb_hash h, int index);
+void dagdb_parse_hash(dagdb_hash h, char * t);
+void dagdb_write_hash(char * t, dagdb_hash h);
 
+void dagdb_set_log_function(int (*f) (const char *,...));
 int dagdb_init(const char * root);
 int dagdb_truncate();
 

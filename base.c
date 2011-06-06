@@ -11,8 +11,6 @@
 
 #include "base.h"
 
-//#define printf(...)
-
 /**
  * File handles for the storage files used by the database.
  */
@@ -40,17 +38,53 @@ static int storage[DAGDB_MAX_TYPE];
  */
 #define dagdb_write(item, pointer) if (pwrite(storage[(pointer).type],&(item),sizeof(item),pointer.address)!=sizeof(item)) return -1
 
+/**
+ * Calculates the offset of a pointer at the given position in the trie.
+ */
 #define TRIE_POINTER_OFFSET(index) ((int)&(((dagdb_trie*)NULL)->pointers[(index)]))
 
+/// A constant denoting a trie node that does not point to anything
 static const dagdb_trie empty_trie;
 
+/// Used for converting to hexadecimal format
+static const char * hex = "0123456789abcdef";
+
+/// Used for converting from hexadecimal format
+static const int value[] = {['0'] = 0,1,2,3,4,5,6,7,8,9, ['a'] = 10,11,12,13,14,15};
+
+#ifdef NDEBUG
+#	define log(...)
+#else
+	/**
+	 * Used for logging. Has the same type as printf.
+	 */
+	static int (*logfn) (const char *,...) = NULL;
+#	define log(...) if (logfn) logfn(__VA_ARGS__)
+#endif
+
+/**
+ * Changes the method used for logging. 
+ * @param f, the new logging method with the same signature as printf. Can be NULL to disable logging.
+ * @warning If DAGDB has been compiled with NDEBUG defined, it won't write any logging.
+ */
+void dagdb_set_log_function(int (*f) (const char *,...)) {
+#ifdef NDEBUG
+	if (f) f("Warning: logging is not compiled into current DAGDB library.\n")
+#else
+	logfn = f;
+#endif
+}
+
+/**
+ * Adds a new trie node to the database.
+ */
 static int create_trie(dagdb_pointer * ptr, dagdb_trie t) {
 	int64_t pos = lseek(storage[DAGDB_TRIE], 0, SEEK_END);
 	if (write(storage[DAGDB_TRIE], &t, sizeof(t)) != sizeof(t))
 		return -1;
 	ptr->type = DAGDB_TRIE;
 	ptr->address = pos;
-	//printf(" +trie@%Lx",pos);
+	log("Created trie at %Lx\n",pos);
 	return 0;
 }
 
@@ -65,11 +99,14 @@ int dagdb_init(const char * root) {
 	int i;
 	int dir;
 	int size[DAGDB_MAX_TYPE];
+	log("Initializing database\n");
 	if (root) {
 		if (mkdir(root, 0755)) {
 			if (errno != EEXIST) {
 				return -1;
 			}
+		} else {
+			log("Created directory '%s'\n", root);
 		}
 		dir = open(root, O_DIRECTORY | O_RDONLY);
 		if (dir==-1) {
@@ -86,7 +123,7 @@ int dagdb_init(const char * root) {
 		int64_t pos = lseek(storage[i], 0, SEEK_END);
 		if (pos==-1) return -1;
 		size[i] = pos;
-		//printf(" size(%s)=%Ld", dagdb_filenames[i], pos);
+		log("Size of '%s' is %Ld\n", dagdb_filenames[i], pos);
 	}
 	if (dir!=AT_FDCWD) {
 		close(dir);
@@ -109,7 +146,7 @@ int dagdb_truncate() {
 		if (ftruncate(storage[i],0)==-1) return -1;
 	}
 	
-	//printf(" Truncated_DB");
+	log("Truncated DB\n");
 	dagdb_pointer root;
 	if (create_trie(&root, empty_trie)==-1)
 		return -1;
@@ -117,6 +154,9 @@ int dagdb_truncate() {
 	return 0;
 }
 
+/**
+ * Gets the value of the 'index'-th character of the hexadecimal representation of the hash.
+ */
 int dagdb_nibble(dagdb_hash h, int index) {
 	assert(index>=0);
 	assert(index<40);
@@ -149,6 +189,7 @@ static int read_hash(dagdb_hash h, dagdb_pointer p) {
 /**
  * Searches the given hash in the trie located at the given root. The resulting pointer is 
  * stored in result. If the hash does not exist, result is set to NULL. 
+ * @returns -1 in case of an error, 0 otherwise.
  */
 int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root) {
 	int i=0;
@@ -255,6 +296,7 @@ static int insert(dagdb_pointer * result_location, dagdb_hash h, dagdb_pointer r
 	}
 	
 	error:
+	log(" i=%d ", i);
 	// The nibbles in the hash are exhausted. There must be something wrong.
 	assert(0);
 	return -1;
@@ -297,6 +339,22 @@ int dagdb_insert_data(void * data, uint64_t length) {
 	
 	// Write the pointer to our new entry.
 	dagdb_write(q, location);
+	
+	log("Inserted %Ld bytes of data.\n", length);
 	return 0;
 }
 
+void dagdb_parse_hash(dagdb_hash h, char * t) {
+	int i;
+	for (i=0; i<20; i++) {
+		h[i] = value[(int)t[i*2]]*16 + value[(int)t[i*2+1]];
+	}
+}
+
+void dagdb_write_hash(char * t, dagdb_hash h) {
+	int i;
+	for (i=0; i<40; i++) {
+		t[i]=hex[dagdb_nibble(h,i)];
+	}
+	t[40]=0;
+}
