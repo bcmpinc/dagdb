@@ -22,8 +22,8 @@ endef
 # Add libraries that are not in pkg-config
 LDFLAGS += -lgcrypt 
 
-# Add c++ compile flags 
-CXXFLAGS += -Wall -Wno-unused-result -D_FORTIFY_SOURCE=2
+# Add c compile flags 
+CFLAGS += -Wall -Wno-unused-result -D_FORTIFY_SOURCE=2 -g
 
 # Tell that we want fancy console output
 fancy=1

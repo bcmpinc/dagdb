@@ -12,7 +12,7 @@
 const char * dagdb_filenames[] = {"tries","elements","data","kvpairs"};
 #define DAGDB_MAX_FILENAME_LENGTH 8
 
-typedef uint32_t dagdb_hash[5];
+typedef uint8_t dagdb_hash[20];
 
 typedef struct {
 	uint64_t type : 8;
@@ -35,22 +35,20 @@ typedef struct {
 } dagdb_trie;
 
 typedef struct {
-	dagdb_pointer key;
+	dagdb_pointer key; // must point to an dagdb_element.
 	dagdb_pointer value;
 } dagdb_kvpair;
 
 int dagdb_nibble(dagdb_hash h, int index);
 
-/**
- * Opens the database.
- * 
- * \param root The root directory of the database. Can be relative to or
- * NULL for current working directory, The directory is created if it does 
- * not yet exist.
- */
 int dagdb_init(const char * root);
+int dagdb_truncate();
 
 int dagdb_insert_data(void * data, uint64_t length);
+int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
 
+void dagdb_get_hash(dagdb_hash h, void * data, int length);
+
+static const dagdb_pointer dagdb_root = {0,0};
 
 #endif

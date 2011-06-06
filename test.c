@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "base.h"
+#include "string.h"
 
 #define NEW_TEST(x) { printf("Testing %s: ", #x); int failed=0;
 #define CHECK(a, ...) if (a) printf("."); else { printf("x"); if (!failed) {failed=1; printf(__VA_ARGS__);}}
@@ -8,23 +9,53 @@
 #define SKIP_GROUP(x) if (0) {
 #define END_GROUP }
 
-const char * hex = "0123456789abcdef";
+#define compare_hash(s1, s2) memcmp((s1), (s2), sizeof(dagdb_hash))
 
-int main(char * argv, int argc) {
+const char * hex = "0123456789abcdef";
+const int value[] = {['0'] = 0,1,2,3,4,5,6,7,8,9, ['a'] = 10,11,12,13,14,15};
+
+static void parse_hash(dagdb_hash h, char * t) {
+	int i;
+	for (i=0; i<20; i++) {
+		h[i] = value[(int)t[i*2]]*16 + value[(int)t[i*2+1]];
+	}
+}
+
+static void write_hash(char * t, dagdb_hash h) {
+	int i;
+	for (i=0; i<40; i++) {
+		t[i]=hex[dagdb_nibble(h,i)];
+	}
+	t[40]=0;
+}
+
+int main(int argc, char ** argv) {
 	printf(" === Testing DAGDB ===\n");
 	
-	NEW_TEST(nibble)
-		// Test that hash nibbles are extracted correctly.
-		int i;
-		dagdb_hash h = {0x01234567,0x89abcdef,0x00000000,0x3c3c3c3c,0x2222dddd};
-		// printf("%p, %p, %x\n", h[0], h[0]>>4, h[0]&0xf);
-		char * t = "0123456789abcdef000000003c3c3c3c2222dddd";
-		for (i=0; i<40; i++) {
-			int v = t[i];
-			int w = dagdb_nibble(h, i);
-			CHECK(w>=0 && w<16 && hex[w] == v, " [%c != %c] ", hex[w], v);
-		}
-	END_TEST
+	NEW_GROUP(functions)
+		NEW_TEST(nibble)
+			// Test that hash nibbles are extracted correctly.
+			int i;
+			dagdb_hash h;
+			// printf("%p, %p, %x\n", h[0], h[0]>>4, h[0]&0xf);
+			char * t = "0123456789abcdef000000003c3c3c3c2222dddd";
+			parse_hash(h, t);
+			for (i=0; i<40; i++) {
+				int v = t[i];
+				int w = dagdb_nibble(h, i);
+				CHECK(w>=0 && w<16 && hex[w] == v, " [%c != %c] ", hex[w], v);
+			}
+		END_TEST
+		NEW_TEST(hash)
+			dagdb_hash h;
+			dagdb_hash hh;
+			parse_hash(hh, "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+			dagdb_get_hash(h, "", 0);
+			char calc[41];
+			write_hash(calc, hh);
+			CHECK(compare_hash(h,hh)==0,"Wrong hash: %s",calc);
+		END_TEST
+	END_GROUP
 	
 	NEW_GROUP(pointers)
 		// Test the pointer structure on various assumptions
@@ -59,7 +90,45 @@ int main(char * argv, int argc) {
 				perror("dagdb_init");
 				failed = 1;
 			}
+			if (dagdb_truncate()) {
+				perror("dagdb_truncate");
+				failed = 1;
+			}
 		END_TEST
+		
+		int items = 6;
+		int length[] = {5,5,6,5,11,7};
+		char * data[] = {"Test1","Test2","foobar","12345","\0after-zero","\n\r\t\001\002\003\004"};
+		NEW_TEST(insert)
+			int i;
+			// Test that data pieces can be inserted.
+			for (i=0; i<items; i++) {
+				int r = dagdb_insert_data(data[i], length[i]);
+				CHECK(r==0," [%d!=0] ", r);
+			}
+		END_TEST
+		
+		NEW_TEST(find)
+			int i;
+			dagdb_pointer p;
+			dagdb_hash h;
+			// Test that data pieces can be found.
+			for (i=0; i<items; i++) {
+				dagdb_get_hash(h, data[i], length[i]);
+				int r = dagdb_find(&p, h, dagdb_root);
+				CHECK(r==0," [%d!=0] ", r);
+			}
+		END_TEST
+		
+		NEW_TEST(insert_twice)
+			int i;
+			// Test that data pieces are not inserted twice.
+			for (i=0; i<items; i++) {
+				int r = dagdb_insert_data(data[i], length[i]);
+				CHECK(r==1," [%d!=1] ", r);
+			}
+		END_TEST
+		
 	END_GROUP
 	
 	return 0;
