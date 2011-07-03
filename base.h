@@ -12,8 +12,10 @@
 const char * dagdb_filenames[] = {"tries","elements","data","kvpairs"};
 #define DAGDB_MAX_FILENAME_LENGTH 8
 
+// Types
 typedef uint8_t dagdb_hash[20];
 
+// Data structures
 typedef struct {
 	uint64_t type : 8;
 	uint64_t address : 56;
@@ -39,20 +41,25 @@ typedef struct {
 	dagdb_pointer value;
 } dagdb_kvpair;
 
+// Conversion functions
 int dagdb_nibble(dagdb_hash h, int index);
 void dagdb_parse_hash(dagdb_hash h, char * t);
 void dagdb_write_hash(char * t, dagdb_hash h);
 void dagdb_get_hash(dagdb_hash h, void * data, int length);
 
+// Initialization
 void dagdb_set_log_function(int (*f) (const char *,...));
 int dagdb_init(const char * root);
 int dagdb_truncate();
 
+// Data manipulation
 int dagdb_insert_data(void * data, uint64_t length);
-int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
 
+// Data interrogation
+int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
 int64_t dagdb_length(dagdb_pointer * p);
 
+// Constants
 const dagdb_pointer dagdb_root = {0,0};
 
 #endif
