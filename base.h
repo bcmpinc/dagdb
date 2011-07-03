@@ -26,7 +26,7 @@ typedef struct {
 } dagdb_element;
 
 typedef struct {
-	uint64_t length;
+	int64_t length;
 	uint8_t data[0];
 } dagdb_data;
 
@@ -42,6 +42,7 @@ typedef struct {
 int dagdb_nibble(dagdb_hash h, int index);
 void dagdb_parse_hash(dagdb_hash h, char * t);
 void dagdb_write_hash(char * t, dagdb_hash h);
+void dagdb_get_hash(dagdb_hash h, void * data, int length);
 
 void dagdb_set_log_function(int (*f) (const char *,...));
 int dagdb_init(const char * root);
@@ -50,8 +51,8 @@ int dagdb_truncate();
 int dagdb_insert_data(void * data, uint64_t length);
 int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
 
-void dagdb_get_hash(dagdb_hash h, void * data, int length);
+int64_t dagdb_length(dagdb_pointer * p);
 
-static const dagdb_pointer dagdb_root = {0,0};
+const dagdb_pointer dagdb_root = {0,0};
 
 #endif

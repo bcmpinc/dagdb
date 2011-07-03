@@ -30,13 +30,13 @@ static int storage[DAGDB_MAX_TYPE];
  * Reads the item at the given location.
  * Breaks out of the calling function (returning -1) in case of an error.
  */
-#define dagdb_read(item, pointer) if (pread(storage[(pointer).type],&(item),sizeof(item),pointer.address)!=sizeof(item)) return -1
+#define dagdb_read(item, pointer) if (pread(storage[(pointer).type],&(item),sizeof(item),(pointer).address)!=sizeof(item)) return -1
 
 /**
  * Writes the given item at the given location.
  * Breaks out of the calling function (returning -1) in case of an error.
  */
-#define dagdb_write(item, pointer) if (pwrite(storage[(pointer).type],&(item),sizeof(item),pointer.address)!=sizeof(item)) return -1
+#define dagdb_write(item, pointer) if (pwrite(storage[(pointer).type],&(item),sizeof(item),(pointer).address)!=sizeof(item)) return -1
 
 /**
  * Calculates the offset of a pointer at the given position in the trie.
@@ -302,6 +302,9 @@ static int insert(dagdb_pointer * result_location, dagdb_hash h, dagdb_pointer r
 	return -1;
 }
 
+/**
+ * Calculates the hash of a bytestring.
+ */
 void dagdb_get_hash(dagdb_hash h, void * data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);
 }
@@ -344,6 +347,9 @@ int dagdb_insert_data(void * data, uint64_t length) {
 	return 0;
 }
 
+/**
+ * Converts a string of hexadecimal numbers into a hash.
+ */
 void dagdb_parse_hash(dagdb_hash h, char * t) {
 	int i;
 	for (i=0; i<20; i++) {
@@ -351,6 +357,9 @@ void dagdb_parse_hash(dagdb_hash h, char * t) {
 	}
 }
 
+/**
+ * Converts a hash into a string of hexadecimal numbers.
+ */
 void dagdb_write_hash(char * t, dagdb_hash h) {
 	int i;
 	for (i=0; i<40; i++) {
@@ -358,3 +367,17 @@ void dagdb_write_hash(char * t, dagdb_hash h) {
 	}
 	t[40]=0;
 }
+
+/**
+ * @returns the length of the pointed data object or -1 in case of an error.
+ */
+int64_t dagdb_length(dagdb_pointer * p) {
+	if (p->type==DAGDB_DATA) {
+		dagdb_data d;
+		dagdb_read(d, *p);
+		return d.length;
+	}
+	return -1;
+}
+
+

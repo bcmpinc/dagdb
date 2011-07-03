@@ -94,14 +94,14 @@ int main(int argc, char ** argv) {
 			}
 		END_TEST
 		
+		dagdb_pointer p[items];
 		NEW_TEST(find)
 			int i;
-			dagdb_pointer p;
 			dagdb_hash h;
 			// Test that data pieces can be found.
 			for (i=0; i<items; i++) {
 				dagdb_get_hash(h, data[i], length[i]);
-				int r = dagdb_find(&p, h, dagdb_root);
+				int r = dagdb_find(&p[i], h, dagdb_root);
 				CHECK(r==0," [%d!=0] ", r);
 			}
 		END_TEST
