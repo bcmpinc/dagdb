@@ -114,7 +114,25 @@ int main(int argc, char ** argv) {
 				CHECK(r==1," [%d!=1] ", r);
 			}
 		END_TEST
-		
+
+		NEW_TEST(type)
+			int i;
+			// Test that data pieces have the correct length.
+			for (i=0; i<items; i++) {
+				CHECK(p[i].type==DAGDB_ELEMENT," [%d] ", p[i].type);
+			}
+		END_TEST
+
+		NEW_TEST(length)
+			int i;
+			// Test that data pieces have the correct length.
+			for (i=0; i<items; i++) {
+				dagdb_element e;
+				dagdb_read_element(&e, p[i]);
+				int64_t l = dagdb_length(e.forward);
+				CHECK(l==length[i]," [%lld!=%d] ", l, length[i]);
+			}
+		END_TEST
 	END_GROUP
 	
 	return 0;

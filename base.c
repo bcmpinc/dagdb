@@ -371,13 +371,20 @@ void dagdb_write_hash(char * t, dagdb_hash h) {
 /**
  * @returns the length of the pointed data object or -1 in case of an error.
  */
-int64_t dagdb_length(dagdb_pointer * p) {
-	if (p->type==DAGDB_DATA) {
+int64_t dagdb_length(dagdb_pointer p) {
+	if (p.type==DAGDB_DATA) {
 		dagdb_data d;
-		dagdb_read(d, *p);
+		dagdb_read(d, p);
 		return d.length;
 	}
 	return -1;
 }
 
+/** 
+ * Reads an element of type element.
+ */
+int dagdb_read_element(dagdb_element * element, dagdb_pointer location) {
+	dagdb_read(*element, location); 
+	return 0;
+}
 

@@ -57,7 +57,8 @@ int dagdb_insert_data(void * data, uint64_t length);
 
 // Data interrogation
 int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
-int64_t dagdb_length(dagdb_pointer * p);
+int dagdb_read_element(dagdb_element * element, dagdb_pointer location);
+int64_t dagdb_length(dagdb_pointer p);
 
 // Constants
 const dagdb_pointer dagdb_root = {0,0};
