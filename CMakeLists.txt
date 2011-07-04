@@ -16,7 +16,7 @@ set(test_src
 
 add_library(dagdb SHARED ${lib_src})
 target_link_libraries(dagdb ${LIBGCRYPT_LIBRARIES})
-set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS}")
+set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS} -std=c++0x")
 
 if(UNITTEST++_FOUND)
 	add_executable(dagdb_test ${test_src}) 
