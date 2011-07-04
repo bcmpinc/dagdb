@@ -24,7 +24,7 @@ int main(int argc, char ** argv) {
 			int i;
 			dagdb_hash h;
 			// printf("%p, %p, %x\n", h[0], h[0]>>4, h[0]&0xf);
-			char * t = "0123456789abcdef000000003c3c3c3c2222dddd";
+			const char * t = "0123456789abcdef000000003c3c3c3c2222dddd";
 			dagdb_parse_hash(h, t);
 			for (i=0; i<40; i++) {
 				int v = t[i];
@@ -54,7 +54,7 @@ int main(int argc, char ** argv) {
 			for (i=0; i<5; i++) {
 				for (j=0; j<4; j++) {
 					dagdb_pointer p = {types[i],addresses[j]};
-					CHECK(p.type == types[i], " [%d != %d] ", p.type, types[i]);
+					CHECK(p.type == types[i], " [%Lu != %d] ", p.type, types[i]);
 				}
 			}
 		END_TEST
@@ -84,7 +84,7 @@ int main(int argc, char ** argv) {
 		
 		int items = 6;
 		int length[] = {5,5,6,5,11,7};
-		char * data[] = {"Test1","Test2","foobar","12345","\0after-zero","\n\r\t\001\002\003\004"};
+		const char * data[] = {"Test1","Test2","foobar","12345","\0after-zero","\n\r\t\001\002\003\004"};
 		NEW_TEST(insert)
 			int i;
 			// Test that data pieces can be inserted.
@@ -119,7 +119,7 @@ int main(int argc, char ** argv) {
 			int i;
 			// Test that data pieces have the correct length.
 			for (i=0; i<items; i++) {
-				CHECK(p[i].type==DAGDB_ELEMENT," [%d] ", p[i].type);
+				CHECK(p[i].type==DAGDB_ELEMENT," [%Lu] ", p[i].type);
 			}
 		END_TEST
 

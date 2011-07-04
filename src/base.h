@@ -42,10 +42,10 @@ typedef struct {
 } dagdb_kvpair;
 
 // Conversion functions
-int dagdb_nibble(dagdb_hash h, int index);
-void dagdb_parse_hash(dagdb_hash h, char * t);
-void dagdb_write_hash(char * t, dagdb_hash h);
-void dagdb_get_hash(dagdb_hash h, void * data, int length);
+int dagdb_nibble(const dagdb_hash h, int index);
+void dagdb_parse_hash(dagdb_hash h, const char * t);
+void dagdb_write_hash(char * t, const dagdb_hash h);
+void dagdb_get_hash(dagdb_hash h, const void * data, int length);
 
 // Initialization
 void dagdb_set_log_function(int (*f) (const char *,...));
@@ -53,7 +53,7 @@ int dagdb_init(const char * root);
 int dagdb_truncate();
 
 // Data manipulation
-int dagdb_insert_data(void * data, uint64_t length);
+int dagdb_insert_data(const void * data, uint64_t length);
 
 // Data interrogation
 int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);

@@ -44,13 +44,10 @@ static int storage[DAGDB_MAX_TYPE];
 #define TRIE_POINTER_OFFSET(index) ((int)&(((dagdb_trie*)NULL)->pointers[(index)]))
 
 /// A constant denoting a trie node that does not point to anything
-static const dagdb_trie empty_trie;
+static const dagdb_trie empty_trie = {};
 
 /// Used for converting to hexadecimal format
 static const char * hex = "0123456789abcdef";
-
-/// Used for converting from hexadecimal format
-static const int value[] = {['0'] = 0,1,2,3,4,5,6,7,8,9, ['a'] = 10,11,12,13,14,15};
 
 #ifdef NDEBUG
 #	define log(...)
@@ -157,7 +154,7 @@ int dagdb_truncate() {
 /**
  * Gets the value of the 'index'-th character of the hexadecimal representation of the hash.
  */
-int dagdb_nibble(dagdb_hash h, int index) {
+int dagdb_nibble(const dagdb_hash h, int index) {
 	assert(index>=0);
 	assert(index<40);
 	return (h[index/2] >> (1-index%2)*4) & 0xf;
@@ -305,7 +302,7 @@ static int insert(dagdb_pointer * result_location, dagdb_hash h, dagdb_pointer r
 /**
  * Calculates the hash of a bytestring.
  */
-void dagdb_get_hash(dagdb_hash h, void * data, int length) {
+void dagdb_get_hash(dagdb_hash h, const void * data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);
 }
 
@@ -313,7 +310,7 @@ void dagdb_get_hash(dagdb_hash h, void * data, int length) {
  * Inserts the given data into the root trie of the database.
  * @returns 0 if entry was created successfully, 1 if entry already exists and -1 in case of an error.
  */
-int dagdb_insert_data(void * data, uint64_t length) {
+int dagdb_insert_data(const void * data, uint64_t length) {
 	int64_t pos;
 	dagdb_hash h;
 	dagdb_get_hash(h, data, length);
@@ -327,7 +324,7 @@ int dagdb_insert_data(void * data, uint64_t length) {
 	pos = lseek(storage[DAGDB_DATA], 0, SEEK_END);
 	if (pos==-1) return -1;
 	if (write(storage[DAGDB_DATA],&length,sizeof(length)) != sizeof(length)) return -1;
-	if (write(storage[DAGDB_DATA],data,length) != length) return -1;
+	if ((uint64_t)write(storage[DAGDB_DATA],data,length) != length) return -1;
 	dagdb_pointer p={DAGDB_DATA, pos};
 	
 	// Create an element for our data.
@@ -347,20 +344,26 @@ int dagdb_insert_data(void * data, uint64_t length) {
 	return 0;
 }
 
+static int value(char c) {
+	if (c>='0' && c<='9') return c-'0';
+	if (c>='a' && c<='f') return c-'a'+10;
+	return 0;
+}
+
 /**
  * Converts a string of hexadecimal numbers into a hash.
  */
-void dagdb_parse_hash(dagdb_hash h, char * t) {
+void dagdb_parse_hash(dagdb_hash h, const char * t) {
 	int i;
 	for (i=0; i<20; i++) {
-		h[i] = value[(int)t[i*2]]*16 + value[(int)t[i*2+1]];
+		h[i] = value(t[i*2])*16 + value(t[i*2+1]);
 	}
 }
 
 /**
  * Converts a hash into a string of hexadecimal numbers.
  */
-void dagdb_write_hash(char * t, dagdb_hash h) {
+void dagdb_write_hash(char * t, const dagdb_hash h) {
 	int i;
 	for (i=0; i<40; i++) {
 		t[i]=hex[dagdb_nibble(h,i)];
