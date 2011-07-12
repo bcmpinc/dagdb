@@ -21,7 +21,7 @@ set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS} -std=c++0x
 if(UNITTEST++_FOUND)
 	add_executable(dagdb_test ${test_src}) 
 	target_link_libraries(dagdb_test dagdb ${UNITTEST++_LIBRARY})
-	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${UNITTEST++_INCLUDE_DIR}")
+	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${UNITTEST++_INCLUDE_DIR} -std=c++0x")
 else()
 	message("Warning: unit tests are not compiled.")
 endif()

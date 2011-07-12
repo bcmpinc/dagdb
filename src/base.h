@@ -54,7 +54,6 @@ namespace Dagdb {
 		
 		// Manipulation
 		int insert(Pointer * result_location, Hash h) const;
-		int insert_data(const void * data, uint64_t length);
 	};
 
 	struct Element : Blob<Element> {
@@ -90,6 +89,8 @@ namespace Dagdb {
 	void set_log_function(int (*f) (const char *,...));
 	int init(const char * root_dir);
 	int truncate();
+	
+	int insert_data(const void * data, uint64_t length);
 };
 
 

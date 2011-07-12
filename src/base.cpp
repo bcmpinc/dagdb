@@ -13,15 +13,16 @@
 
 namespace Dagdb {//
 
-// TODO: make part of blob
+// TODO: make filename part of blob
 const char * filenames[] = {"tries","elements","data","kvpairs"};
 const int filename_length = 8;
-//const Pointer root = {Type::trie, 0};
+const Pointer root(Type::trie, 0);
 
 /**
  * File handles for the storage files used by the database.
  */
 int storage[(int)Type::__max_type];
+// TODO: can be part of blob struct.
 
 /// A constant denoting a trie node that does not point to anything
 static const Trie empty_trie = {};
@@ -317,8 +318,8 @@ Pointer::Pointer(Type type, uint64_t address) : type(type), address(address) {
  * Calculates the hash of a bytestring.
  */
 // TODO: move into Hash constructor or add as method for blobs
-void get_hash(Hash h, const void * data, int length) {
-	gcry_md_hash_buffer(GCRY_MD_SHA1, h.byte, data, length);
+void Hash::compute(const void * data, int length) {
+	gcry_md_hash_buffer(GCRY_MD_SHA1, byte, data, length);
 }
 
 /**
@@ -329,7 +330,7 @@ void get_hash(Hash h, const void * data, int length) {
 int insert_data(const void * data, uint64_t length) {
 	int64_t pos;
 	Hash h;
-	get_hash(h, data, length);
+	h.compute(data, length);
 	
 	// Create an entry in our root trie.
 	Pointer location;
@@ -399,5 +400,7 @@ int64_t Pointer::data_length() {
 	}
 	return -1;
 }
+
+template int Blob<Element>::read(Pointer p);
 
 };
