@@ -1,66 +1,99 @@
 #ifndef DAGDB_BASE_H
 #define DAGDB_BASE_H
-#include <stdint.h>
+#include <cstdint>
 
-#define DAGDB_TRIE    0
-#define DAGDB_ELEMENT 1
-#define DAGDB_DATA    2
-#define DAGDB_KVPAIR  3
-// ---
-#define DAGDB_MAX_TYPE   4
+namespace Dagdb {
+	// Storage types and filenames
+	enum struct Type : uint8_t {
+		trie,
+		element,
+		data,
+		kvpair,
+		__max_type,
+	};
 
-const char * dagdb_filenames[] = {"tries","elements","data","kvpairs"};
-#define DAGDB_MAX_FILENAME_LENGTH 8
+	// Data structures
+	struct Hash;
+	struct Pointer;
+	struct Element;
+	struct Data;
+	struct Trie;
+	struct KVPair;
 
-// Types
-typedef uint8_t dagdb_hash[20];
+	template<class T>
+	struct Blob {
+		inline bool operator==(const T &b) {return 0==memcmp(this, &b, sizeof(T));}
+		int read(Pointer p); 
+		int write(Pointer p) const; 
+		int append(Pointer *ptr, Type t) const;
+	};
 
-// Data structures
-typedef struct {
-	uint64_t type : 8;
-	uint64_t address : 56;
-} dagdb_pointer;
+	struct Hash : Blob<Hash> {
+		uint8_t byte[20];
+		
+		inline uint8_t operator[](int i) const {return byte[i];}
+		inline uint8_t& operator[](int i) {return byte[i];}
+		
+		int nibble(int index) const;
+		void parse(const char * t);
+		void write(char * t) const;
+		void compute(const void * data, int length);
+	};
 
-typedef struct {
-	dagdb_hash hash;
-	dagdb_pointer forward;
-	dagdb_pointer reverse;
-} dagdb_element;
+	struct Pointer : Blob<Pointer> {
+		Type type;
+		uint64_t address : 56;
+		
+		Pointer() = default;
+		Pointer(Type type, uint64_t address); 
 
-typedef struct {
-	int64_t length;
-	uint8_t data[0];
-} dagdb_data;
+		// Interogation
+		int find(Pointer * result, Hash h) const;
+		int read_element(Element * element);
+		int64_t data_length();
+		
+		// Manipulation
+		int insert(Pointer * result_location, Hash h) const;
+		int insert_data(const void * data, uint64_t length);
+	};
 
-typedef struct {
-	dagdb_pointer pointers[16];
-} dagdb_trie;
+	struct Element : Blob<Element> {
+		Hash hash;
+		Pointer forward;
+		Pointer reverse;
+	};
 
-typedef struct {
-	dagdb_pointer key; // must point to an dagdb_element.
-	dagdb_pointer value;
-} dagdb_kvpair;
+	struct Data : Blob<Data> {
+		int64_t length;
+		uint8_t data[0];
+	};
 
-// Conversion functions
-int dagdb_nibble(const dagdb_hash h, int index);
-void dagdb_parse_hash(dagdb_hash h, const char * t);
-void dagdb_write_hash(char * t, const dagdb_hash h);
-void dagdb_get_hash(dagdb_hash h, const void * data, int length);
+	struct Trie : Blob<Trie> {
+		Pointer pointers[16];
+		
+		inline Pointer operator[](int i) const {return pointers[i];}
+		inline Pointer& operator[](int i) {return pointers[i];}
+	};
 
-// Initialization
-void dagdb_set_log_function(int (*f) (const char *,...));
-int dagdb_init(const char * root);
-int dagdb_truncate();
+	struct KVPair{
+		Pointer key; // must point to an element.
+		Pointer value;
+	};
+	
+	// Global variables & constants
+	extern const Pointer root;
+	extern const char * filenames[];
+	extern const int filename_length;
+	extern int storage[(int)Type::__max_type];
 
-// Data manipulation
-int dagdb_insert_data(const void * data, uint64_t length);
+	// Initialization
+	void set_log_function(int (*f) (const char *,...));
+	int init(const char * root_dir);
+	int truncate();
+};
+
 
 // Data interrogation
-int dagdb_find(dagdb_pointer * result, dagdb_hash h, dagdb_pointer root);
-int dagdb_read_element(dagdb_element * element, dagdb_pointer location);
-int64_t dagdb_length(dagdb_pointer p);
 
-// Constants
-const dagdb_pointer dagdb_root = {0,0};
 
 #endif
