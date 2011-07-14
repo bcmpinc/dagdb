@@ -85,7 +85,7 @@ int Blob<T>::append(Pointer *ptr, Type t) const {
 	ptr->type = t;
 	ptr->address = pos;
 	if (write(*ptr)==-1) return -1;
-	log("Appended %d at %Lx\n",(int)t,pos);
+	log("Appended %s at %Ld\n",filenames[(int)t],pos);
 	return 0;
 }
 
@@ -176,7 +176,7 @@ int Hash::nibble(int index) const {
  * Pointers that have a hash are of type DAGDB_ELEMENT or DAGDB_KVPAIR.
  */
 // TODO: move into blob classes.
-static int read_hash(Hash h, Pointer p) {
+// static int read_hash(Hash h, Pointer p) {
 /*	if (p.type == DAGDB_KVPAIR) {
 		kvpair k; 
 		read(k,p);
@@ -189,8 +189,8 @@ static int read_hash(Hash h, Pointer p) {
 		copy_hash(h, e.hash);
 		return 0;
 	}*/
-	return -1;
-}
+//	return -1;
+//}
 
 /**
  * Searches the given hash in the trie located at the given root. The resulting pointer is 
@@ -203,15 +203,23 @@ int Pointer::find(Pointer * result, Hash h) const {
 	Trie t;
 	assert(result);
 	Pointer cur = *this;
+	log("Searching for %s starting from %p: ", ({char a[41];h.write(a);a;}), this);
 	while(1) {
 		if (cur.type!=Type::trie) {
 			// element found, checking if hash matches.
 			Hash hh;
-			if(read_hash(hh, cur)==-1) return -1;
+			if (cur.type == Type::element) {
+				if (hh.read(cur)) return -1;
+			} else {
+				return -1; // TODO: KVpairs not yet supported.
+			}
+			
 			if(h==hh) {
+				log("Found %s at %ld\n", filenames[(int)cur.type], cur.address);
 				*result = cur;
 			} else {
 				// hash mismatch, return a NULL pointer (ie. root).
+				log("Not found (hash mismatch)\n");
 				*result = root;
 			}
 			return 0;
@@ -224,6 +232,7 @@ int Pointer::find(Pointer * result, Hash h) const {
 		
 		if (cur == root) {
 			// NULL pointer hit.
+			log("Not found (null pointer)\n");
 			*result = root;
 			return 0;
 		}
@@ -267,7 +276,7 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 			if (p.type == Type::element) {
 				if (hh.read(p)) return -1;
 			} else {
-				return -1; // KVpairs not yet supported.
+				return -1; // TODO: KVpairs not yet supported.
 			}
 			
 			if(h == hh) {
@@ -283,7 +292,7 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 				trie.pointers[hh.nibble(i)] = p;
 				
 				// write the trie to disk
-				if (empty_trie.append(&nt, Type::trie)==-1)
+				if (trie.append(&nt, Type::trie)==-1)
 					return -1;
 				
 				// Update the pointer in the current trie.
@@ -320,6 +329,7 @@ Pointer::Pointer(Type type, uint64_t address) : type(type), address(address) {
 // TODO: move into Hash constructor or add as method for blobs
 void Hash::compute(const void * data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, byte, data, length);
+	log("Hashing %ld bytes data from %p: %s\n", length, data, ({char a[41];write(a);a;}));
 }
 
 /**
@@ -357,7 +367,7 @@ int insert_data(const void * data, uint64_t length) {
 	// Write the pointer to our new entry.
 	q.write(location);
 	
-	log("Inserted %Ld bytes of data.\n", length);
+	log("Inserted %Ld bytes of data from %p. pointer@%Ld element@%Ld data@%Ld\n", length, data, location.address, q.address, e.forward.address);
 	return 0;
 }
 
@@ -401,6 +411,6 @@ int64_t Pointer::data_length() {
 	return -1;
 }
 
-template int Blob<Element>::read(Pointer p);
+template class Blob<Element>;
 
 };
