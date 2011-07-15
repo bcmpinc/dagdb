@@ -25,7 +25,7 @@ namespace Dagdb {
 		inline bool operator==(const T &b) {return 0==memcmp(this, &b, sizeof(T));}
 		int read(Pointer p); 
 		int write(Pointer p) const; 
-		int append(Pointer *ptr, Type t) const;
+		Pointer append(Type t) const;
 	};
 
 	struct Hash : Blob<Hash> {
@@ -87,7 +87,7 @@ namespace Dagdb {
 
 	// Initialization
 	void set_log_function(int (*f) (const char *,...));
-	int init(const char * root_dir);
+	void init(const char * root_dir);
 	int truncate();
 	
 	int insert_data(const void * data, uint64_t length);

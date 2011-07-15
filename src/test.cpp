@@ -1,6 +1,7 @@
 #include <UnitTest++.h>
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include "base.h"
 
 #define compare_hash(s1, s2) memcmp((s1), (s2), sizeof(dagdb_hash))
@@ -66,10 +67,7 @@ SUITE(io) {
 	TEST(init) {
 		// Test that init works at all.
 		// Creates files in 'db' directory.
-		if (init("db")) {
-			perror("init");
-			CHECK(false);
-		}
+		init("db");
 		if (truncate()) {
 			perror("truncate");
 			CHECK(false);

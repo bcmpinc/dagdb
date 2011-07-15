@@ -2,6 +2,8 @@
 #include <cstring>
 #include <cassert>
 #include <cstdio>
+#include <stdexcept>
+#include <sstream>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -13,7 +15,7 @@
 
 namespace Dagdb {//
 
-// TODO: make filename part of blob
+// TODO: make filename part of blob?
 const char * filenames[] = {"tries","elements","data","kvpairs"};
 const int filename_length = 8;
 const Pointer root(Type::trie, 0);
@@ -54,6 +56,8 @@ void set_log_function(int (*f) (const char *,...)) {
 }
 
 #define DAGDB_MAX_TYPE ((int)Type::__max_type)
+#define ERROR1(what) std::runtime_error(std::string(what ": ")+strerror(errno))
+#define ERROR2(what,param) std::runtime_error(std::string(what " '")+param+"': "+strerror(errno))
 
 /**
  * Reads the item at the given location.
@@ -80,13 +84,12 @@ int Blob<T>::write(Pointer p) const {
 // TODO: return pointer or throw error.
 // TODO: get rid of Type argument
 template<class T>
-int Blob<T>::append(Pointer *ptr, Type t) const {
+Pointer Blob<T>::append(Type t) const {
 	int64_t pos = lseek(storage[(int)t], 0, SEEK_END);
-	ptr->type = t;
-	ptr->address = pos;
-	if (write(*ptr)==-1) return -1;
+	Pointer ptr(t,pos);
+	if (write(ptr)==-1) throw ERROR2("Failed to append", filenames[(int)t]);
 	log("Appended %s at %Ld\n",filenames[(int)t],pos);
-	return 0;
+	return ptr;
 }
 
 /**
@@ -101,22 +104,22 @@ int Blob<T>::append(Pointer *ptr, Type t) const {
  * NULL for current working directory, The directory is created if it does 
  * not yet exist.
  */
-// TODO: throw error.
-int init(const char * root_dir) {
+void init(const char * root_dir) {
 	int dir;
 	int size[(int)Type::__max_type];
 	log("Initializing database\n");
 	if (root_dir) {
 		if (mkdir(root_dir, 0755)) {
 			if (errno != EEXIST) {
-				return -1;
+				throw ERROR2("Can't create dir", root_dir);
 			}
+			errno = 0;
 		} else {
 			log("Created directory '%s'\n", root_dir);
 		}
 		dir = open(root_dir, O_DIRECTORY | O_RDONLY);
 		if (dir==-1) {
-			return -1;
+			throw ERROR2("Failed to open dir", root_dir);
 		}
 	} else {
 		dir = AT_FDCWD;
@@ -124,10 +127,11 @@ int init(const char * root_dir) {
 	for (int i = 0; i < DAGDB_MAX_TYPE; i++) {
 		storage[i] = openat(dir, filenames[i], O_CREAT | O_RDWR, 0644);
 		if (storage[i] == -1) {
-			return -1;
+			throw ERROR2("Failed to open/create", filenames[i]);
 		}
 		int64_t pos = lseek(storage[i], 0, SEEK_END);
-		if (pos==-1) return -1;
+		if (pos==-1) 
+			throw ERROR2("Failed to seek", filenames[i]);
 		size[i] = pos;
 		log("Size of '%s' is %Ld\n", filenames[i], pos);
 	}
@@ -135,12 +139,10 @@ int init(const char * root_dir) {
 		close(dir);
 	}
 	if (size[(int)Type::trie]==0) {
-		Pointer r;
-		if (empty_trie.append(&r, Type::trie)==-1)
-			return -1;
+		Pointer r = empty_trie.append(Type::trie);
 		assert(r == root);
 	}
-	return 0;
+	return;
 }
 
 /**
@@ -153,9 +155,7 @@ int truncate() {
 	}
 	
 	log("Truncated DB\n");
-	Pointer r;
-	if (empty_trie.append(&r, Type::trie)==-1)
-		return -1;
+	Pointer r = empty_trie.append(Type::trie);
 	assert(r == root);
 	return 0;
 }
@@ -292,8 +292,7 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 				trie.pointers[hh.nibble(i)] = p;
 				
 				// write the trie to disk
-				if (trie.append(&nt, Type::trie)==-1)
-					return -1;
+				nt = trie.append(Type::trie);
 				
 				// Update the pointer in the current trie.
 				nt.write(cur); // corrupts DB if interrupted.
