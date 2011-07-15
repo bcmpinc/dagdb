@@ -23,8 +23,9 @@ namespace Dagdb {
 	template<class T>
 	struct Blob {
 		inline bool operator==(const T &b) {return 0==memcmp(this, &b, sizeof(T));}
-		int read(Pointer p); 
-		int write(Pointer p) const; 
+		inline bool operator!=(const T &b) {return 0!=memcmp(this, &b, sizeof(T));}
+		void read(Pointer p); 
+		void write(Pointer p) const; 
 		Pointer append(Type t) const;
 	};
 
@@ -48,7 +49,7 @@ namespace Dagdb {
 		Pointer(Type type, uint64_t address); 
 
 		// Interogation
-		int find(Pointer * result, Hash h) const;
+		Pointer find(Hash h) const;
 		int read_element(Element * element);
 		int64_t data_length();
 		
@@ -88,7 +89,7 @@ namespace Dagdb {
 	// Initialization
 	void set_log_function(int (*f) (const char *,...));
 	void init(const char * root_dir);
-	int truncate();
+	void truncate();
 	
 	int insert_data(const void * data, uint64_t length);
 };

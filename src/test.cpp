@@ -68,10 +68,7 @@ SUITE(io) {
 		// Test that init works at all.
 		// Creates files in 'db' directory.
 		init("db");
-		if (truncate()) {
-			perror("truncate");
-			CHECK(false);
-		}
+		truncate();
 	}
 	
 	const int items = 6;
@@ -94,8 +91,8 @@ SUITE(io) {
 		// Test that data pieces can be found.
 		for (i=0; i<items; i++) {
 			h.compute(data[i], length[i]);
-			int r = root.find(&p[i], h);
-			CHECK_EQUAL(r, 0);
+			p[i] = root.find(h);
+			CHECK(p[i] != root);
 		}
 	}
 	

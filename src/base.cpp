@@ -64,16 +64,18 @@ void set_log_function(int (*f) (const char *,...)) {
  * Breaks out of the calling function (returning -1) in case of an error.
  */
 template<class T>
-int Blob<T>::read(Pointer p) { 
-	return pread(storage[(int)p.type],this,sizeof(T),p.address)!=sizeof(T);
+void Blob<T>::read(Pointer p) { 
+	if (pread(storage[(int)p.type],this,sizeof(T),p.address)!=sizeof(T)) 
+		throw ERROR2("Failed reading",filenames[(int)p.type]);
 }
 /**
  * Writes the given item at the given location.
  * Breaks out of the calling function (returning -1) in case of an error.
  */
 template<class T>
-int Blob<T>::write(Pointer p) const {
-	return pwrite(storage[(int)p.type],this,sizeof(T),p.address)!=sizeof(T);
+void Blob<T>::write(Pointer p) const {
+	if (pwrite(storage[(int)p.type],this,sizeof(T),p.address)!=sizeof(T))
+		throw ERROR2("Failed writing",filenames[(int)p.type]);
 }
 
 // TODO: specialize Data and make data part a pointer.
@@ -81,13 +83,13 @@ int Blob<T>::write(Pointer p) const {
 /**
  * Appends a new T to the database.
  */
-// TODO: return pointer or throw error.
 // TODO: get rid of Type argument
 template<class T>
 Pointer Blob<T>::append(Type t) const {
 	int64_t pos = lseek(storage[(int)t], 0, SEEK_END);
+	if (pos==-1) throw ERROR2("Failed to seek", filenames[(int)t]);
 	Pointer ptr(t,pos);
-	if (write(ptr)==-1) throw ERROR2("Failed to append", filenames[(int)t]);
+	write(ptr);
 	log("Appended %s at %Ld\n",filenames[(int)t],pos);
 	return ptr;
 }
@@ -148,16 +150,16 @@ void init(const char * root_dir) {
 /**
  * Removes all contents from the db.
  */
-int truncate() {
+void truncate() {
 	int i;
 	for (i = 0; i < DAGDB_MAX_TYPE; i++) {
-		if (ftruncate(storage[i],0)==-1) return -1;
+		if (ftruncate(storage[i],0)==-1) throw ERROR2("Failed to truncate file ", filenames[i]);
 	}
 	
 	log("Truncated DB\n");
 	Pointer r = empty_trie.append(Type::trie);
 	assert(r == root);
-	return 0;
+	return;
 }
 
 /**
@@ -198,10 +200,9 @@ int Hash::nibble(int index) const {
  * @returns -1 in case of an error, 0 otherwise.
  */
 // TODO: return pointer or throw error.
-int Pointer::find(Pointer * result, Hash h) const {
+Pointer Pointer::find(Hash h) const {
 	int i=0;
 	Trie t;
-	assert(result);
 	Pointer cur = *this;
 	log("Searching for %s starting from %p: ", ({char a[41];h.write(a);a;}), this);
 	while(1) {
@@ -209,20 +210,19 @@ int Pointer::find(Pointer * result, Hash h) const {
 			// element found, checking if hash matches.
 			Hash hh;
 			if (cur.type == Type::element) {
-				if (hh.read(cur)) return -1;
+				hh.read(cur);
 			} else {
-				return -1; // TODO: KVpairs not yet supported.
+				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
 			}
 			
 			if(h==hh) {
 				log("Found %s at %ld\n", filenames[(int)cur.type], cur.address);
-				*result = cur;
+				return cur;
 			} else {
 				// hash mismatch, return a NULL pointer (ie. root).
 				log("Not found (hash mismatch)\n");
-				*result = root;
+				return root;
 			}
-			return 0;
 		}
 		
 		// Navigate one node further in the trie.
@@ -233,14 +233,13 @@ int Pointer::find(Pointer * result, Hash h) const {
 		if (cur == root) {
 			// NULL pointer hit.
 			log("Not found (null pointer)\n");
-			*result = root;
-			return 0;
+			return root;
 		}
 		i++;
 	}
 	// The loop above should never terminate normally.
 	assert(0);
-	return -1;
+	throw std::logic_error("Invalid state");
 }
 
 /**
@@ -274,7 +273,7 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 			// we need to create additional trie nodes and move the existing pointer.
 			Hash hh;
 			if (p.type == Type::element) {
-				if (hh.read(p)) return -1;
+				hh.read(p);
 			} else {
 				return -1; // TODO: KVpairs not yet supported.
 			}
