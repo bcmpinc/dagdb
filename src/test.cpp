@@ -80,7 +80,7 @@ SUITE(io) {
 		// Test that data pieces can be inserted.
 		for (i=0; i<items; i++) {
 			int r = insert_data(data[i], length[i]);
-			CHECK_EQUAL(r, 0);
+			CHECK_EQUAL(r, true);
 		}
 	}
 	
@@ -101,7 +101,7 @@ SUITE(io) {
 		// Test that data pieces are not inserted twice.
 		for (i=0; i<items; i++) {
 			int r = insert_data(data[i], length[i]);
-			CHECK_EQUAL(r, 1);
+			CHECK_EQUAL(r, false);
 		}
 	}
 

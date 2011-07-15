@@ -61,7 +61,7 @@ void set_log_function(int (*f) (const char *,...)) {
 
 /**
  * Reads the item at the given location.
- * Breaks out of the calling function (returning -1) in case of an error.
+ * @throws runtime_error in case of (io) errors.
  */
 template<class T>
 void Blob<T>::read(Pointer p) { 
@@ -70,7 +70,7 @@ void Blob<T>::read(Pointer p) {
 }
 /**
  * Writes the given item at the given location.
- * Breaks out of the calling function (returning -1) in case of an error.
+ * @throws runtime_error in case of (io) errors.
  */
 template<class T>
 void Blob<T>::write(Pointer p) const {
@@ -102,9 +102,10 @@ Pointer Blob<T>::append(Type t) const {
 /**
  * Opens the files required by the database. Creating them if they do not yet exist.
  * 
- * \param root The root directory of the database. Can be relative to or
+ * @param root_dir The root directory of the database. Can be relative to or
  * NULL for current working directory, The directory is created if it does 
  * not yet exist.
+ * @throws runtime_error in case of (io) errors.
  */
 void init(const char * root_dir) {
 	int dir;
@@ -144,11 +145,11 @@ void init(const char * root_dir) {
 		Pointer r = empty_trie.append(Type::trie);
 		assert(r == root);
 	}
-	return;
 }
 
 /**
  * Removes all contents from the db.
+ * @throws runtime_error in case of (io) errors.
  */
 void truncate() {
 	int i;
@@ -159,7 +160,6 @@ void truncate() {
 	log("Truncated DB\n");
 	Pointer r = empty_trie.append(Type::trie);
 	assert(r == root);
-	return;
 }
 
 /**
@@ -195,11 +195,10 @@ int Hash::nibble(int index) const {
 //}
 
 /**
- * Searches the given hash in the trie located at the given root. The resulting pointer is 
- * stored in result. If the hash does not exist, result is set to NULL. 
- * @returns -1 in case of an error, 0 otherwise.
+ * Searches for the element associated by given hash in the trie located at this pointer.
+ * @returns Pointer to the element or, if not found, the root pointer.
+ * @throws runtime_error in case of (io) errors.
  */
-// TODO: return pointer or throw error.
 Pointer Pointer::find(Hash h) const {
 	int i=0;
 	Trie t;
@@ -243,14 +242,12 @@ Pointer Pointer::find(Hash h) const {
 }
 
 /**
- * Creates a new entry in the map which is pointed to by the pointer at 'root_location' and returns the 
- * location in 'result_location' where the pointer to the value of the entry must be stored.
- * @returns 0 if entry was created successfully, 1 if entry already exists and -1 in case of an error.
+ * Creates a new entry in the map which is pointed to by this pointer.
+ * @returns the location where the pointer to the value of the entry must be stored
+ * @throws runtime_error in case of (io) errors.
  */
-// TODO: return pointer or throw error.
-int Pointer::insert(Pointer * result_location, Hash h) const {
+Pointer Pointer::insert(Hash h) const {
 	int i=0;
-	assert(result_location);
 	Pointer cur = *this;
 	while(1) {
 		Pointer p;
@@ -261,8 +258,7 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 			p.read(cur);
 			if (p == root) {
 				// a NULL pointer is stored here. That means that the new entry can be inserted here.
-				*result_location = cur;
-				return 0;
+				return cur;
 			}
 		}
 		
@@ -275,13 +271,12 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 			if (p.type == Type::element) {
 				hh.read(p);
 			} else {
-				return -1; // TODO: KVpairs not yet supported.
+				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
 			}
 			
 			if(h == hh) {
 				// entry already exists in db.
-				*result_location = cur;
-				return 1;
+				return cur;
 			} else {
 				// hash mismatch, create new trie node.
 				Pointer nt;
@@ -304,17 +299,16 @@ int Pointer::insert(Pointer * result_location, Hash h) const {
 		}
 		
 		// We are still looking at a trie node. Calculate the address of the next pointer.
-		if (i>=40) goto error;
+		if (i>=40) break;
 		p.address += TRIE_POINTER_OFFSET(h.nibble(i));
 		cur = p;
 		i++;
 	}
 	
-	error:
 	log(" i=%d ", i);
 	// The nibbles in the hash are exhausted. There must be something wrong.
 	assert(0);
-	return -1;
+	throw std::logic_error("Invalid state");
 }
 
 Pointer::Pointer(Type type, uint64_t address) : type(type), address(address) {
@@ -332,25 +326,25 @@ void Hash::compute(const void * data, int length) {
 
 /**
  * Inserts the given data into the root trie of the database.
- * @returns 0 if entry was created successfully, 1 if entry already exists and -1 in case of an error.
+ * @returns 0 if entry was created successfully, 1 if entry already exists.
  */
 // TODO: make more generic?
-int insert_data(const void * data, uint64_t length) {
+bool insert_data(const void * data, uint64_t length) {
 	int64_t pos;
 	Hash h;
 	h.compute(data, length);
 	
 	// Create an entry in our root trie.
-	Pointer location;
-	int r = root.insert(&location, h);
-	if (r) return r; // error or entry already exists.
+	Pointer location = root.insert(h);
+	Pointer a;
+	a.read(location);
+	if (a!=root) return false;
 	
 	// insert the data in the data file.
 	pos = lseek(storage[(int)Type::data], 0, SEEK_END);
-	if (pos==-1) return -1;
-	if (write(storage[(int)Type::data],&length,sizeof(length)) != sizeof(length)) return -1;
-	if ((uint64_t)write(storage[(int)Type::data],data,length) != length) return -1;
-	
+	if (pos==-1) throw ERROR1("Failed to seek");
+	if (write(storage[(int)Type::data],&length,sizeof(length)) != sizeof(length)) throw ERROR1("Failed to write");
+	if ((uint64_t)write(storage[(int)Type::data],data,length) != length) throw ERROR1("Failed to write");
 	
 	// Create an element for our data.
 	Element e;
@@ -358,7 +352,7 @@ int insert_data(const void * data, uint64_t length) {
 	e.forward = Pointer(Type::data, pos);
 	e.reverse = root;
 	pos = lseek(storage[(int)Type::element], 0, SEEK_END);
-	if (pos==-1) return -1;
+	if (pos==-1) throw ERROR1("Failed to seek");
 	Pointer q(Type::element, pos);
 	e.write(q);
 	
@@ -366,7 +360,7 @@ int insert_data(const void * data, uint64_t length) {
 	q.write(location);
 	
 	log("Inserted %Ld bytes of data from %p. pointer@%Ld element@%Ld data@%Ld\n", length, data, location.address, q.address, e.forward.address);
-	return 0;
+	return true;
 }
 
 static int value(char c) {
@@ -400,13 +394,13 @@ void Hash::write(char * t) const {
  * @returns the length of the pointed data object or -1 in case of an error.
  */
 // TODO: remove in favor of read/write specialization? What about large blobs and random io?
-int64_t Pointer::data_length() {
+uint64_t Pointer::data_length() {
 	if (type==Type::data) {
 		Data d;
 		d.read(*this);
 		return d.length;
 	}
-	return -1;
+	throw std::invalid_argument("Not a data pointer");
 }
 
 template class Blob<Element>;

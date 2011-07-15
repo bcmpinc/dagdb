@@ -50,11 +50,10 @@ namespace Dagdb {
 
 		// Interogation
 		Pointer find(Hash h) const;
-		int read_element(Element * element);
-		int64_t data_length();
+		uint64_t data_length();
 		
 		// Manipulation
-		int insert(Pointer * result_location, Hash h) const;
+		Pointer insert(Hash h) const;
 	};
 
 	struct Element : Blob<Element> {
@@ -91,7 +90,7 @@ namespace Dagdb {
 	void init(const char * root_dir);
 	void truncate();
 	
-	int insert_data(const void * data, uint64_t length);
+	bool insert_data(const void * data, uint64_t length);
 };
 
 
