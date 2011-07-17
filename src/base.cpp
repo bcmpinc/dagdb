@@ -26,9 +26,6 @@ const Pointer root(Type::trie, 0);
 int storage[(int)Type::__max_type];
 // TODO: can be part of blob struct.
 
-/// A constant denoting a trie node that does not point to anything
-static const Trie empty_trie = {};
-
 /// Used for converting to hexadecimal format
 static const char * hex = "0123456789abcdef";
 
@@ -142,7 +139,7 @@ void init(const char * root_dir) {
 		close(dir);
 	}
 	if (size[(int)Type::trie]==0) {
-		Pointer r = empty_trie.append(Type::trie);
+		Pointer r = Trie().append(Type::trie);
 		assert(r == root);
 	}
 }
@@ -158,7 +155,7 @@ void truncate() {
 	}
 	
 	log("Truncated DB\n");
-	Pointer r = empty_trie.append(Type::trie);
+	Pointer r = Trie().append(Type::trie);
 	assert(r == root);
 }
 
@@ -280,7 +277,7 @@ Pointer Pointer::insert(Hash h) const {
 			} else {
 				// hash mismatch, create new trie node.
 				Pointer nt;
-				Trie trie = empty_trie;
+				Trie trie;
 				
 				// store the pointer to the old entry.
 				trie.pointers[hh.nibble(i)] = p;

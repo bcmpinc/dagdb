@@ -22,6 +22,7 @@ namespace Dagdb {
 
 	template<class T>
 	struct Blob {
+		inline Blob() {memset(this, 0, sizeof(T));}
 		inline bool operator==(const T &b) {return 0==memcmp(this, &b, sizeof(T));}
 		inline bool operator!=(const T &b) {return 0!=memcmp(this, &b, sizeof(T));}
 		void read(Pointer p); 
