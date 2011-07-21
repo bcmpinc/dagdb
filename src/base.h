@@ -1,6 +1,7 @@
 #ifndef DAGDB_BASE_H
 #define DAGDB_BASE_H
 #include <cstdint>
+#include <cstring>
 
 namespace Dagdb {
 	// Storage types and filenames
@@ -63,9 +64,14 @@ namespace Dagdb {
 		Pointer reverse;
 	};
 
-	struct Data : Blob<Data> {
-		int64_t length;
-		uint8_t data[0];
+	struct Data {
+		uint64_t length;
+		uint8_t * data;
+		Data() : length(0), data(0) {};
+		~Data() {if (data) delete[] data;};
+		inline uint8_t operator[](int i) const {return data[i];}
+		inline uint8_t& operator[](int i) {return data[i];}
+		void read(Pointer p); 
 	};
 
 	struct Trie : Blob<Trie> {

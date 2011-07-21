@@ -1,5 +1,4 @@
 #include <cerrno>
-#include <cstring>
 #include <cassert>
 #include <cstdio>
 #include <stdexcept>
@@ -50,7 +49,7 @@ void set_log_function(int (*f) (const char *, ...)) {
 #else
 	logfn = f;
 #endif
-}
+	}
 
 #define DAGDB_MAX_TYPE ((int)Type::__max_type)
 #define ERROR1(what) std::runtime_error(std::string(what ": ")+strerror(errno))
@@ -75,7 +74,18 @@ void Blob<T>::write(Pointer p) const {
 		throw ERROR2("Failed writing", filenames[(int)p.type]);
 }
 
-// TODO: specialize Data and make data part a pointer.
+/**
+ * Reads a data element. Allocating memory for the data part.
+ */
+void Data::read(Pointer p) {
+	if (p.type!=Type::data) throw std::logic_error("Reading data using pointer of wrong type.");
+	if (pread(storage[(int)p.type], &length, sizeof(length), p.address) != sizeof(length))
+		throw ERROR2("Failed reading", filenames[(int)p.type]);
+	if (data) delete[] data;
+	data = new uint8_t[length];
+	if ((uint8_t)pread(storage[(int)p.type], data, length, p.address + sizeof(length)) != length)
+		throw ERROR2("Failed reading", filenames[(int)p.type]);
+}
 
 /**
  * Appends a new T to the database.
@@ -403,3 +413,4 @@ uint64_t Pointer::data_length() {
 template class Blob<Element>;
 
 };
+
