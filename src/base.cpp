@@ -121,7 +121,7 @@ void Blob<T>::write(Pointer p) const {
  * Reads a data element. Allocating memory for the data part.
  */
 void Data::read(Pointer p) {
-	if (p.type != Data::info.type) throw std::logic_error("Reading data using pointer of wrong type.");
+	if (p.type != Data::info.type) throw std::invalid_argument("Reading data using pointer of wrong type.");
 	if (pread(info.handle, &length, sizeof(length), p.address) != sizeof(length))
 		throw ERROR2("Failed reading", info.name);
 	if (data) delete[] data;
@@ -146,7 +146,6 @@ Pointer Storage<T>::append() const {
 /**
  * Calculates the offset of a pointer at the given position in the trie.
  */
-// TODO: remove if unused
 #define TRIE_POINTER_OFFSET(index) ((int)&(((Trie*)NULL)->pointers[(index)]))
 
 /**
@@ -378,7 +377,7 @@ Pointer::Pointer(uint8_t type, uint64_t address) : type(type), address(address) 
  * Calculates the hash of a bytestring.
  */
 // TODO: move into Hash constructor or add as method for blobs
-void Hash::compute(const void *data, int length) {
+Hash::Hash(const void *data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, byte, data, length);
 	log("Hashing %ld bytes data from %p: %s\n", length, data, ( {char a[41]; write(a); a;})); // TODO: merge into write, if possible.
 }
@@ -390,10 +389,9 @@ void Hash::compute(const void *data, int length) {
 // TODO: make more generic?
 bool insert_data(const void *data, uint64_t length) {
 	if (length >= (1ULL << 56))
-		throw std::runtime_error(buildstring("Data to long: ", length, " < ", (1ULL << 56)));
+		throw std::invalid_argument(buildstring("Data to long: ", length, " < ", (1ULL << 56)));
 	int64_t pos;
-	Hash h;
-	h.compute(data, length);
+	Hash h(data, length);
 
 	// Create an entry in our root trie.
 	Pointer location = root.insert(h);
@@ -427,17 +425,19 @@ bool insert_data(const void *data, uint64_t length) {
 static int value(char c) {
 	if (c >= '0' && c <= '9') return c - '0';
 	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-	return 0;
+	throw std::invalid_argument(buildstring("Invalid character in hexadecimal hash string: '", c, "'"));
 }
 
 /**
  * Converts a string of hexadecimal numbers into a hash.
  */
-void Hash::parse(const char *t) {
+Hash::Hash(const char * t) {
 	int i;
 	for (i = 0; i < 20; i++) {
 		byte[i] = value(t[i * 2]) * 16 + value(t[i * 2 + 1]);
 	}
+	if (t[40])
+		throw std::invalid_argument(buildstring("Hexadecimal hash string is too long"));
 }
 
 /**

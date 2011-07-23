@@ -15,10 +15,9 @@ const char *hex = "0123456789abcdef";
 SUITE(functions) {
 	TEST(nibble) {
 		// Test that hash nibbles are extracted correctly.
-		Hash h;
 		// printf("%p, %p, %x\n", h[0], h[0]>>4, h[0]&0xf);
 		const char *t = "0123456789abcdef000000003c3c3c3c2222dddd";
-		h.parse(t);
+		Hash h(t);
 		for (int i = 0; i < 40; i++) {
 			int v = t[i];
 			int w = h.nibble(i);
@@ -28,10 +27,8 @@ SUITE(functions) {
 		}
 	}
 	TEST(hash) {
-		Hash h;
-		Hash hh;
-		hh.parse("da39a3ee5e6b4b0d3255bfef95601890afd80709");
-		h.compute("", 0);
+		Hash h("", 0);
+		Hash hh("da39a3ee5e6b4b0d3255bfef95601890afd80709");
 		char calc[41];
 		hh.write(calc);
 		CHECK(h == hh);
@@ -84,10 +81,9 @@ SUITE(io) {
 
 	Pointer p[items];
 	TEST(find) {
-		Hash h;
 		// Test that data pieces can be found.
 		for (int i = 0; i < items; i++) {
-			h.compute(data[i], length[i]);
+			Hash h(data[i], length[i]);
 			p[i] = root.find(h);
 			CHECK(p[i] != root);
 		}

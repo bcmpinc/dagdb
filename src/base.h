@@ -37,13 +37,15 @@ namespace Dagdb {
 	struct Hash : Blob<Hash> {
 		uint8_t byte[20];
 		
+		Hash() = default;
+		Hash(const char * t);
+		Hash(const void * data, int length);
+		
 		inline uint8_t operator[](int i) const {return byte[i];}
 		inline uint8_t& operator[](int i) {return byte[i];}
 		
 		int nibble(int index) const;
-		void parse(const char * t);
 		void write(char * t) const;
-		void compute(const void * data, int length);
 	};
 
 	struct Pointer : Blob<Pointer> {
@@ -73,6 +75,7 @@ namespace Dagdb {
 		uint64_t length;
 		uint8_t * data;
 		Data() : length(0), data(0) {};
+		Data(Data&) = delete;
 		~Data() {if (data) delete[] data;};
 		inline uint8_t operator[](int i) const {return data[i];}
 		inline uint8_t& operator[](int i) {return data[i];}
@@ -107,3 +110,4 @@ namespace Dagdb {
 
 
 #endif
+
