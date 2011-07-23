@@ -1,0 +1,8 @@
+{
+	Suppress gcrypt memory pools.
+	Memcheck:Leak
+	fun:malloc
+	...
+	fun:gcry_md_hash_buffer
+}
+
