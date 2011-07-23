@@ -49,7 +49,7 @@ SUITE(pointers) {
 		for (int i = 0; i < 5; i++) {
 			for (int j = 0; j < 4; j++) {
 				Pointer p(types[i], addresses[j]);
-				CHECK_EQUAL((int)p.type, types[i]);
+				CHECK_EQUAL(p.type, types[i]);
 			}
 		}
 	}

@@ -32,7 +32,6 @@ std::string buildstring(const Args &... args) {
 	buildstring(s, args...);
 	return s.str();
 }
- 
 
 /**
  * Keeps track of the various storage files used by the DB.
@@ -46,7 +45,7 @@ static const size_t max_filename_length = 8;
  */
 StorageInfo::StorageInfo(uint8_t type, const char *name) : type(type), name(name), handle(0) {
 	assert(type < storage_size);
-	assert(storage[type] == 0);
+	assert(storage[type] == 0); // Verify that the type number is unique.
 	assert(strlen(name) <= max_filename_length);
 	storage[type] = this;
 }
@@ -57,8 +56,17 @@ template<> const StorageInfo Storage<Element>::info = StorageInfo(1, "elements")
 const StorageInfo Data::info = StorageInfo(2, "data");
 template<> const StorageInfo Storage<KVPair>::info = StorageInfo(3, "kvpairs");
 
-static_assert(sizeof(Pointer) == 8, "Pointer is not 8 bytes.");
+// Check that the size of the blobs is what we would expect.
+#define CHECK_STRUCT_SIZE(type, size) static_assert(sizeof(type) == size, #type " is not " #size " bytes.");
+CHECK_STRUCT_SIZE(Trie,   128);
+CHECK_STRUCT_SIZE(Element, 36);
+CHECK_STRUCT_SIZE(KVPair,  16);
+CHECK_STRUCT_SIZE(Pointer,  8);
+CHECK_STRUCT_SIZE(Hash,    20);
 
+/**
+ * Static pointer, pointing to the root trie.
+ */
 const Pointer root(Trie::info.type, 0);
 
 /// Used for converting to hexadecimal format
