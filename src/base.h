@@ -4,15 +4,6 @@
 #include <cstring>
 
 namespace Dagdb {
-	// Storage types and filenames
-	enum struct Type : uint8_t {
-		trie,
-		element,
-		data,
-		kvpair,
-		__max_type,
-	};
-
 	// Data structures
 	struct Hash;
 	struct Pointer;
@@ -21,6 +12,13 @@ namespace Dagdb {
 	struct Trie;
 	struct KVPair;
 
+	struct StorageInfo {
+		StorageInfo(uint8_t type, const char * name);
+		uint8_t type;
+		const char * name;
+		int handle;
+	};
+	
 	template<class T>
 	struct Blob {
 		inline Blob() {memset(this, 0, sizeof(T));}
@@ -28,7 +26,12 @@ namespace Dagdb {
 		inline bool operator!=(const T &b) {return 0!=memcmp(this, &b, sizeof(T));}
 		void read(Pointer p); 
 		void write(Pointer p) const; 
-		Pointer append(Type t) const;
+	};
+	
+	template<class T>
+	struct Storage : Blob<T> {
+		static const StorageInfo info;
+		Pointer append() const;
 	};
 
 	struct Hash : Blob<Hash> {
@@ -44,27 +47,29 @@ namespace Dagdb {
 	};
 
 	struct Pointer : Blob<Pointer> {
-		Type type;
+		uint8_t type;
 		uint64_t address : 56;
 		
 		Pointer() = default;
-		Pointer(Type type, uint64_t address); 
-
+		Pointer(uint8_t type, uint64_t address); 
+		
 		// Interogation
 		Pointer find(Hash h) const;
 		uint64_t data_length();
+		const StorageInfo &info() const;
 		
 		// Manipulation
 		Pointer insert(Hash h) const;
 	};
 
-	struct Element : Blob<Element> {
+	struct Element : Storage<Element> {
 		Hash hash;
 		Pointer forward;
 		Pointer reverse;
 	};
 
 	struct Data {
+		static const StorageInfo info;
 		uint64_t length;
 		uint8_t * data;
 		Data() : length(0), data(0) {};
@@ -74,23 +79,20 @@ namespace Dagdb {
 		void read(Pointer p); 
 	};
 
-	struct Trie : Blob<Trie> {
+	struct Trie : Storage<Trie> {
 		Pointer pointers[16];
 		
 		inline Pointer operator[](int i) const {return pointers[i];}
 		inline Pointer& operator[](int i) {return pointers[i];}
 	};
 
-	struct KVPair{
+	struct KVPair : Storage<KVPair> {
 		Pointer key; // must point to an element.
 		Pointer value;
 	};
 	
 	// Global variables & constants
 	extern const Pointer root;
-	extern const char * filenames[];
-	extern const int filename_length;
-	extern int storage[(int)Type::__max_type];
 
 	// Initialization
 	void set_log_function(int (*f) (const char *,...));

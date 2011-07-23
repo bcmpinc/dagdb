@@ -48,7 +48,7 @@ SUITE(pointers) {
 	TEST(type) {
 		for (int i = 0; i < 5; i++) {
 			for (int j = 0; j < 4; j++) {
-				Pointer p((Type)types[i], addresses[j]);
+				Pointer p(types[i], addresses[j]);
 				CHECK_EQUAL((int)p.type, types[i]);
 			}
 		}
@@ -56,7 +56,7 @@ SUITE(pointers) {
 	TEST(address) {
 		for (int i = 0; i < 5; i++) {
 			for (int j = 0; j < 4; j++) {
-				Pointer p((Type)types[i], addresses[j]);
+				Pointer p(types[i], addresses[j]);
 				CHECK_EQUAL(p.address, addresses[j]);
 			}
 		}
@@ -104,7 +104,7 @@ SUITE(io) {
 	TEST(type) {
 		// Test that pointers have the correct type.
 		for (int i = 0; i < items; i++) {
-			CHECK_EQUAL((int)p[i].type, (int)Type::element);
+			CHECK_EQUAL(p[i].type, Element::info.type);
 		}
 	}
 

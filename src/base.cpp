@@ -14,16 +14,52 @@
 
 namespace Dagdb {//
 
-// TODO: make filename part of blob?
-const char *filenames[] = {"tries", "elements", "data", "kvpairs"};
-const int filename_length = 8;
-const Pointer root(Type::trie, 0);
+// String builder.
+template<typename T>
+void buildstring(std::stringstream &s, const T &t) {
+	s << t;
+}
+
+template<typename T, typename... Args>
+void buildstring(std::stringstream &s, const T &t, const Args &... args) {
+	s << t;
+	buildstring(s, args...);
+}
+
+template<typename... Args>
+std::string buildstring(const Args &... args) {
+	std::stringstream s;
+	buildstring(s, args...);
+	return s.str();
+}
+ 
 
 /**
- * File handles for the storage files used by the database.
+ * Keeps track of the various storage files used by the DB.
  */
-int storage[(int)Type::__max_type];
-// TODO: can be part of blob struct.
+static StorageInfo *storage[4];
+static const int storage_size = sizeof(storage) / sizeof(storage[0]);
+static const size_t max_filename_length = 8;
+
+/**
+ * Creates a new entry for storage.
+ */
+StorageInfo::StorageInfo(uint8_t type, const char *name) : type(type), name(name), handle(0) {
+	assert(type < storage_size);
+	assert(storage[type] == 0);
+	assert(strlen(name) <= max_filename_length);
+	storage[type] = this;
+}
+
+// List of storage files and parameters.
+template<> const StorageInfo Storage<Trie>::info = StorageInfo(0, "tries");
+template<> const StorageInfo Storage<Element>::info = StorageInfo(1, "elements");
+const StorageInfo Data::info = StorageInfo(2, "data");
+template<> const StorageInfo Storage<KVPair>::info = StorageInfo(3, "kvpairs");
+
+static_assert(sizeof(Pointer) == 8, "Pointer is not 8 bytes.");
+
+const Pointer root(Trie::info.type, 0);
 
 /// Used for converting to hexadecimal format
 static const char *hex = "0123456789abcdef";
@@ -51,7 +87,6 @@ void set_log_function(int (*f) (const char *, ...)) {
 #endif
 }
 
-#define DAGDB_MAX_TYPE ((int)Type::__max_type)
 #define ERROR1(what) std::runtime_error(std::string(what ": ")+strerror(errno))
 #define ERROR2(what,param) std::runtime_error(std::string(what " '")+param+"': "+strerror(errno))
 
@@ -61,8 +96,8 @@ void set_log_function(int (*f) (const char *, ...)) {
  */
 template<class T>
 void Blob<T>::read(Pointer p) {
-	if (pread(storage[(int)p.type], this, sizeof(T), p.address) != sizeof(T))
-		throw ERROR2("Failed reading", filenames[(int)p.type]);
+	if (pread(p.info().handle, this, sizeof(T), p.address) != sizeof(T))
+		throw ERROR2("Failed reading", p.info().name);
 }
 /**
  * Writes the given item at the given location.
@@ -70,40 +105,40 @@ void Blob<T>::read(Pointer p) {
  */
 template<class T>
 void Blob<T>::write(Pointer p) const {
-	if (pwrite(storage[(int)p.type], this, sizeof(T), p.address) != sizeof(T))
-		throw ERROR2("Failed writing", filenames[(int)p.type]);
+	if (pwrite(p.info().handle, this, sizeof(T), p.address) != sizeof(T))
+		throw ERROR2("Failed writing", p.info().name);
 }
 
 /**
  * Reads a data element. Allocating memory for the data part.
  */
 void Data::read(Pointer p) {
-	if (p.type != Type::data) throw std::logic_error("Reading data using pointer of wrong type.");
-	if (pread(storage[(int)p.type], &length, sizeof(length), p.address) != sizeof(length))
-		throw ERROR2("Failed reading", filenames[(int)p.type]);
+	if (p.type != Data::info.type) throw std::logic_error("Reading data using pointer of wrong type.");
+	if (pread(info.handle, &length, sizeof(length), p.address) != sizeof(length))
+		throw ERROR2("Failed reading", info.name);
 	if (data) delete[] data;
 	data = new uint8_t[length];
-	if ((uint8_t)pread(storage[(int)p.type], data, length, p.address + sizeof(length)) != length)
-		throw ERROR2("Failed reading", filenames[(int)p.type]);
+	if ((uint8_t)pread(info.handle, data, length, p.address + sizeof(length)) != length)
+		throw ERROR2("Failed reading", info.name);
 }
 
 /**
  * Appends a new T to the database.
  */
-// TODO: get rid of Type argument
 template<class T>
-Pointer Blob<T>::append(Type t) const {
-	int64_t pos = lseek(storage[(int)t], 0, SEEK_END);
-	if (pos == -1) throw ERROR2("Failed to seek", filenames[(int)t]);
-	Pointer ptr(t, pos);
-	write(ptr);
-	log("Appended %s at %Ld\n", filenames[(int)t], pos);
+Pointer Storage<T>::append() const {
+	int64_t pos = lseek(info.handle, 0, SEEK_END);
+	if (pos == -1) throw ERROR2("Failed to seek", info.name);
+	Pointer ptr(info.type, pos);
+	Blob<T>::write(ptr);
+	log("Appended %s at %Ld\n", info.name, pos);
 	return ptr;
 }
 
 /**
  * Calculates the offset of a pointer at the given position in the trie.
  */
+// TODO: remove if unused
 #define TRIE_POINTER_OFFSET(index) ((int)&(((Trie*)NULL)->pointers[(index)]))
 
 /**
@@ -116,7 +151,7 @@ Pointer Blob<T>::append(Type t) const {
  */
 void init(const char *root_dir) {
 	int dir;
-	int size[(int)Type::__max_type];
+	int size[storage_size];
 	log("Initializing database\n");
 	if (root_dir) {
 		if (mkdir(root_dir, 0755)) {
@@ -134,22 +169,23 @@ void init(const char *root_dir) {
 	} else {
 		dir = AT_FDCWD;
 	}
-	for (int i = 0; i < DAGDB_MAX_TYPE; i++) {
-		storage[i] = openat(dir, filenames[i], O_CREAT | O_RDWR, 0644);
-		if (storage[i] == -1) {
-			throw ERROR2("Failed to open/create", filenames[i]);
+	for (int i = 0; i < storage_size; i++) {
+		if (storage[i] == 0) continue;
+		storage[i]->handle = openat(dir, storage[i]->name, O_CREAT | O_RDWR, 0644);
+		if (storage[i]->handle == -1) {
+			throw ERROR2("Failed to open/create", storage[i]->name);
 		}
-		int64_t pos = lseek(storage[i], 0, SEEK_END);
+		int64_t pos = lseek(storage[i]->handle, 0, SEEK_END);
 		if (pos == -1)
-			throw ERROR2("Failed to seek", filenames[i]);
+			throw ERROR2("Failed to seek", storage[i]->name);
 		size[i] = pos;
-		log("Size of '%s' is %Ld\n", filenames[i], pos);
+		log("Size of '%s' is %Ld\n", storage[i]->name, pos);
 	}
 	if (dir != AT_FDCWD) {
 		close(dir);
 	}
-	if (size[(int)Type::trie] == 0) {
-		Pointer r = Trie().append(Type::trie);
+	if (size[Trie::info.type] == 0) {
+		Pointer r = Trie().append();
 		assert(r == root);
 	}
 }
@@ -160,12 +196,12 @@ void init(const char *root_dir) {
  */
 void truncate() {
 	int i;
-	for (i = 0; i < DAGDB_MAX_TYPE; i++) {
-		if (ftruncate(storage[i], 0) == -1) throw ERROR2("Failed to truncate file ", filenames[i]);
+	for (i = 0; i < storage_size; i++) {
+		if (ftruncate(storage[i]->handle, 0) == -1) throw ERROR2("Failed to truncate file ", storage[i]->name);
 	}
 
 	log("Truncated DB\n");
-	Pointer r = Trie().append(Type::trie);
+	Pointer r = Trie().append();
 	assert(r == root);
 }
 
@@ -202,6 +238,14 @@ int Hash::nibble(int index) const {
 //}
 
 /**
+ * Obtains a reference to the storage info.
+ */
+const StorageInfo &Pointer::info() const {
+	return *storage[type];
+}
+
+
+/**
  * Searches for the element associated by given hash in the trie located at this pointer.
  * @returns Pointer to the element or, if not found, the root pointer.
  * @throws runtime_error in case of (io) errors.
@@ -212,17 +256,17 @@ Pointer Pointer::find(Hash h) const {
 	Pointer cur = *this;
 	log("Searching for %s starting from %p: ", ( {char a[41]; h.write(a); a;}), this);
 	while(1) {
-		if (cur.type != Type::trie) {
+		if (cur.type != Trie::info.type) {
 			// element found, checking if hash matches.
 			Hash hh;
-			if (cur.type == Type::element) {
+			if (cur.type == Element::info.type) {
 				hh.read(cur);
 			} else {
 				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
 			}
 
 			if(h == hh) {
-				log("Found %s at %ld\n", filenames[(int)cur.type], cur.address);
+				log("Found %s at %ld\n", cur.info().name, cur.address);
 				return cur;
 			} else {
 				// hash mismatch, return a NULL pointer (ie. root).
@@ -269,13 +313,13 @@ Pointer Pointer::insert(Hash h) const {
 			}
 		}
 
-		if (p.type != Type::trie) {
+		if (p.type != Trie::info.type) {
 			// There is already an element stored at this location. This
 			// element might either be the one we are trying to insert
 			// (in that case return 1) or a different element, which means
 			// we need to create additional trie nodes and move the existing pointer.
 			Hash hh;
-			if (p.type == Type::element) {
+			if (p.type == Element::info.type) {
 				hh.read(p);
 			} else {
 				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
@@ -293,7 +337,7 @@ Pointer Pointer::insert(Hash h) const {
 				trie.pointers[hh.nibble(i)] = p;
 
 				// write the trie to disk
-				nt = trie.append(Type::trie);
+				nt = trie.append();
 
 				// Update the pointer in the current trie.
 				nt.write(cur); // corrupts DB if interrupted.
@@ -318,7 +362,7 @@ Pointer Pointer::insert(Hash h) const {
 	throw std::logic_error("Invalid state");
 }
 
-Pointer::Pointer(Type type, uint64_t address) : type(type), address(address) {
+Pointer::Pointer(uint8_t type, uint64_t address) : type(type), address(address) {
 }
 
 
@@ -328,7 +372,7 @@ Pointer::Pointer(Type type, uint64_t address) : type(type), address(address) {
 // TODO: move into Hash constructor or add as method for blobs
 void Hash::compute(const void *data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, byte, data, length);
-	log("Hashing %ld bytes data from %p: %s\n", length, data, ( {char a[41]; write(a); a;}));
+	log("Hashing %ld bytes data from %p: %s\n", length, data, ( {char a[41]; write(a); a;})); // TODO: merge into write, if possible.
 }
 
 /**
@@ -337,6 +381,8 @@ void Hash::compute(const void *data, int length) {
  */
 // TODO: make more generic?
 bool insert_data(const void *data, uint64_t length) {
+	if (length >= (1ULL << 56))
+		throw std::runtime_error(buildstring("Data to long: ", length, " < ", (1ULL << 56)));
 	int64_t pos;
 	Hash h;
 	h.compute(data, length);
@@ -348,19 +394,19 @@ bool insert_data(const void *data, uint64_t length) {
 	if (a != root) return false;
 
 	// insert the data in the data file.
-	pos = lseek(storage[(int)Type::data], 0, SEEK_END);
+	pos = lseek(Data::info.handle, 0, SEEK_END);
 	if (pos == -1) throw ERROR1("Failed to seek");
-	if (write(storage[(int)Type::data], &length, sizeof(length)) != sizeof(length)) throw ERROR1("Failed to write");
-	if ((uint64_t)write(storage[(int)Type::data], data, length) != length) throw ERROR1("Failed to write");
+	if (write(Data::info.handle, &length, sizeof(length)) != sizeof(length)) throw ERROR1("Failed to write");
+	if (write(Data::info.handle, data, length) != (int64_t)length) throw ERROR1("Failed to write");
 
 	// Create an element for our data.
 	Element e;
 	e.hash = h;
-	e.forward = Pointer(Type::data, pos);
+	e.forward = Pointer(Data::info.type, pos);
 	e.reverse = root;
-	pos = lseek(storage[(int)Type::element], 0, SEEK_END);
+	pos = lseek(Element::info.handle, 0, SEEK_END);
 	if (pos == -1) throw ERROR1("Failed to seek");
-	Pointer q(Type::element, pos);
+	Pointer q(Element::info.type, pos);
 	e.write(q);
 
 	// Write the pointer to our new entry.
@@ -402,7 +448,7 @@ void Hash::write(char *t) const {
  */
 // TODO: remove in favor of read/write specialization? What about large blobs and random io?
 uint64_t Pointer::data_length() {
-	if (type == Type::data) {
+	if (type == Data::info.type) {
 		Data d;
 		d.read(*this);
 		return d.length;
@@ -413,4 +459,5 @@ uint64_t Pointer::data_length() {
 template class Blob<Element>;
 
 };
+
 
