@@ -127,8 +127,8 @@ SUITE(io) {
 
 	TEST(wrong_data_pointer_read) {
 		Data d;
-		CHECK_THROW(d.read(root), std::logic_error);
-		CHECK_THROW(d.read(p[0]), std::logic_error);
+		CHECK_THROW(d.read(root), std::invalid_argument);
+		CHECK_THROW(d.read(p[0]), std::invalid_argument);
 	}
 }
 

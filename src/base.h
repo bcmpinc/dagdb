@@ -40,6 +40,7 @@ namespace Dagdb {
 		Hash() = default;
 		Hash(const char * t);
 		Hash(const void * data, int length);
+		Hash(Pointer p);
 		
 		inline uint8_t operator[](int i) const {return byte[i];}
 		inline uint8_t& operator[](int i) {return byte[i];}

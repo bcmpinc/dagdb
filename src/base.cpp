@@ -11,27 +11,9 @@
 #include <gcrypt.h>
 
 #include "base.h"
+#include "util.h"
 
 namespace Dagdb {//
-
-// String builder.
-template<typename T>
-void buildstring(std::stringstream &s, const T &t) {
-	s << t;
-}
-
-template<typename T, typename... Args>
-void buildstring(std::stringstream &s, const T &t, const Args &... args) {
-	s << t;
-	buildstring(s, args...);
-}
-
-template<typename... Args>
-std::string buildstring(const Args &... args) {
-	std::stringstream s;
-	buildstring(s, args...);
-	return s.str();
-}
 
 /**
  * Keeps track of the various storage files used by the DB.
@@ -227,22 +209,19 @@ int Hash::nibble(int index) const {
  * The hash is stored in 'h'.
  * Pointers that have a hash are of type DAGDB_ELEMENT or DAGDB_KVPAIR.
  */
-// TODO: move into blob classes.
-// static int read_hash(Hash h, Pointer p) {
-/*	if (p.type == DAGDB_KVPAIR) {
-		kvpair k;
-		read(k,p);
-		p = k.key;
-		assert(p.type == DAGDB_ELEMENT);
+// TODO: create tests for KVPair.
+Hash::Hash(Pointer p) {
+	if (p.type == KVPair::info.type) {
+		p.read(p);
+		assert(p.type == Element::info.type);
+		read(p);
+		return;
+	} else if (p.type == Element::info.type) {
+		read(p);
+		return;
 	}
-	if (p.type == DAGDB_ELEMENT) {
-		element e;
-		read(e,p);
-		copy_hash(h, e.hash);
-		return 0;
-	}*/
-//	return -1;
-//}
+	throw std::invalid_argument(buildstring("Pointer does not point to a trie entry."));
+}
 
 /**
  * Obtains a reference to the storage info.
@@ -250,7 +229,6 @@ int Hash::nibble(int index) const {
 const StorageInfo &Pointer::info() const {
 	return *storage[type];
 }
-
 
 /**
  * Searches for the element associated by given hash in the trie located at this pointer.
@@ -265,12 +243,7 @@ Pointer Pointer::find(Hash h) const {
 	while(1) {
 		if (cur.type != Trie::info.type) {
 			// element found, checking if hash matches.
-			Hash hh;
-			if (cur.type == Element::info.type) {
-				hh.read(cur);
-			} else {
-				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
-			}
+			Hash hh(cur);
 
 			if(h == hh) {
 				log("Found %s at %ld\n", cur.info().name, cur.address);
@@ -325,12 +298,7 @@ Pointer Pointer::insert(Hash h) const {
 			// element might either be the one we are trying to insert
 			// (in that case return 1) or a different element, which means
 			// we need to create additional trie nodes and move the existing pointer.
-			Hash hh;
-			if (p.type == Element::info.type) {
-				hh.read(p);
-			} else {
-				throw std::logic_error("Not implemented."); // TODO: KVpairs not yet supported.
-			}
+			Hash hh(p);
 
 			if(h == hh) {
 				// entry already exists in db.
@@ -376,10 +344,9 @@ Pointer::Pointer(uint8_t type, uint64_t address) : type(type), address(address) 
 /**
  * Calculates the hash of a bytestring.
  */
-// TODO: move into Hash constructor or add as method for blobs
 Hash::Hash(const void *data, int length) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, byte, data, length);
-	log("Hashing %ld bytes data from %p: %s\n", length, data, ( {char a[41]; write(a); a;})); // TODO: merge into write, if possible.
+	log("Hashing %ld bytes data from %p: %s\n", length, data, ( {char a[41]; write(a); a;})); 
 }
 
 /**
@@ -455,13 +422,13 @@ void Hash::write(char *t) const {
  * @returns the length of the pointed data object or -1 in case of an error.
  */
 // TODO: remove in favor of read/write specialization? What about large blobs and random io?
+// TODO: Create special data pointer?
 uint64_t Pointer::data_length() {
-	if (type == Data::info.type) {
-		Data d;
-		d.read(*this);
-		return d.length;
-	}
-	throw std::invalid_argument("Not a data pointer");
+	if (type != Data::info.type) 
+		throw std::invalid_argument("Not a data pointer");
+	Data d;
+	d.read(*this);
+	return d.length;
 }
 
 template class Blob<Element>;
