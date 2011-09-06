@@ -4,11 +4,14 @@
 #include <exception>
 #include <stdexcept>
 #include <gcrypt.h>
+#include <map>
+
 #include "base.h"
+#include "dagdb.h"
 
 #define compare_hash(s1, s2) memcmp((s1), (s2), sizeof(dagdb_hash))
 
-using namespace Dagdb;
+using namespace dagdb;
 
 const char *hex = "0123456789abcdef";
 
@@ -129,6 +132,34 @@ SUITE(io) {
 		Data d;
 		CHECK_THROW(d.read(root), std::invalid_argument);
 		CHECK_THROW(d.read(p[0]), std::invalid_argument);
+	}
+}
+
+SUITE(dagdb_header) {
+	class myit {
+	public:
+		int key() {return 27;}
+		int value() {return 42;}
+		void operator++() {}
+	};
+	class mymap {
+	public:
+		myit find(int a) {return myit();}
+		myit begin() {return myit();}
+		myit end() {return myit();}
+	};
+	
+	TEST(types) {
+		std::map<int,int> m;
+		m[3]=12;
+		m[5]=99;
+		m[9]=2;
+		
+		mymap n;
+		
+		interface::map a(m);
+		//a.begin().key().abs();
+		interface::map b(n);
 	}
 }
 

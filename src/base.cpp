@@ -13,7 +13,7 @@
 #include "base.h"
 #include "util.h"
 
-namespace Dagdb {//
+namespace dagdb {//
 
 /**
  * Keeps track of the various storage files used by the DB.

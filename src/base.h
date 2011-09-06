@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace Dagdb {
+namespace dagdb {
 	// Data structures
 	struct Hash;
 	struct Pointer;
@@ -24,8 +24,8 @@ namespace Dagdb {
 		inline Blob() {memset(this, 0, sizeof(T));}
 		inline bool operator==(const T &b) {return 0==memcmp(this, &b, sizeof(T));}
 		inline bool operator!=(const T &b) {return 0!=memcmp(this, &b, sizeof(T));}
-		void read(Pointer p); 
-		void write(Pointer p) const; 
+		void read(Pointer p);
+		void write(Pointer p) const;
 	};
 	
 	template<class T>
