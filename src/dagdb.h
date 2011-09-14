@@ -35,7 +35,7 @@ namespace interface { //
 	private:
 		class map_iterator_concept {
 		public:
-			virtual void next()=0;
+			virtual void operator++()=0;
 			virtual element key()=0;
 			virtual element value()=0;
 			virtual ~map_iterator_concept() {}
@@ -44,7 +44,7 @@ namespace interface { //
 		class map_iterator_model_fn : public map_iterator_concept {
 		public:
 			map_iterator_model_fn(T m) : ref(m) {}
-			virtual void next() { ++ref; }
+			virtual void operator++() { ++ref; }
 			virtual element key() { return ref.key(); }
 			virtual element value() { return ref.value(); }
 		private:
@@ -54,7 +54,7 @@ namespace interface { //
 		class map_iterator_model_stl : public map_iterator_concept {
 		public:
 			map_iterator_model_stl(T m) : ref(m) {}
-			virtual void next() { ref++; }
+			virtual void operator++() { ++ref; }
 			virtual element key() { return ref->first; }
 			virtual element value() { return ref->second; }
 		private:
@@ -77,7 +77,7 @@ namespace interface { //
 	public:
 		template <class T> 
 		map_iterator(T m) : ref(new decltype(map_iterator_selector<T>::type)(m)) {}
-		void operator++() { ref->next(); }
+		void operator++() { ref->operator++(); }
 		element key() { return ref->key(); }
 		element value() { return ref->value(); }
 	};
