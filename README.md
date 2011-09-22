@@ -16,9 +16,9 @@ Requirements for I/O are:
 
  - Database queries will be read only operations.
  - Database updates will not be failure safe. Hence power failure during an update causes the database to be corrupted.
- 
+
 Operational requirements:
- 
+
  - Insert given plain data into a given map
  - Insert given record/structured data into a given map
  - Get entry from a given map by given hash
@@ -26,10 +26,28 @@ Operational requirements:
  - Get list of key hashes pointing to given data
  - Get list of records pointing to given data using given key
 
+Interface:
+----------
+The following data types are exposed as common interface:
+
+ - Type Element: (Element -> Element) [union] Strings
+	- Element find(Element)
+	- Iterator begin()
+	- Iterator end()
+
+ - Type Set: (Element -> Set)
+	- Set find(Element)
+	- Iterator begin()
+	- Iterator end()
+	- Set union(Set)
+	- Set intersect(Set)
+
+
+
 File format
 -----------
 The database stores the following elements:
- 
+
  - A single map hash->data (though multiple is supported as well)
  - Multiple maps hash->map
 
@@ -39,10 +57,10 @@ The following structures are used to store the data:
 	- hash (20 bytes)
 	- forward pointer (8 bytes) to data/treap node
 	- reverse pointer (8 bytes) to treap node
-2. Data: 
+2. Data:
 	- length (8 bytes)
 	- data (length bytes)
-3. Treap node (part of a set/map): 
+3. Treap node (part of a set/map):
 	- pointer list (16*8 bytes) to treap node/element
 4. Key value map entry:
 	- key pointer (8 bytes) to element
