@@ -14,6 +14,7 @@
 #include "util.h"
 
 namespace dagdb {//
+namespace storage {//
 
 /**
  * Keeps track of the various storage files used by the DB.
@@ -434,5 +435,5 @@ uint64_t Pointer::data_length() {
 template class Blob<Element>;
 
 };
-
+};
 

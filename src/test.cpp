@@ -11,7 +11,7 @@
 
 #define compare_hash(s1, s2) memcmp((s1), (s2), sizeof(dagdb_hash))
 
-using namespace dagdb;
+using namespace dagdb::storage;
 
 const char *hex = "0123456789abcdef";
 
@@ -157,9 +157,9 @@ SUITE(dagdb_header) {
 		
 		mymap n;
 		
-		interface::map a(m);
+		//interface::map a(m);
 		//a.begin().key().abs();
-		interface::map b(n);
+		//interface::map b(n);
 	}
 }
 

@@ -3,7 +3,9 @@
 #include <cstdint>
 #include <cstring>
 
-namespace dagdb {
+namespace dagdb { //
+namespace storage { //
+
 	// Data structures
 	struct Hash;
 	struct Pointer;
@@ -105,7 +107,7 @@ namespace dagdb {
 	
 	bool insert_data(const void * data, uint64_t length);
 };
-
+};
 
 // Data interrogation
 

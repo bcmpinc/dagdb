@@ -30,7 +30,16 @@ Interface:
 ----------
 The following data types are exposed as common interface:
 
- - Type Element: (Element -> Element) [union] Strings
+ - Type Element: Record or Data
+
+ - Type Data: (String of bytes)
+	- int length()
+	- Handle open()
+
+ - Type Handle: 
+	- int read(*buffer, length)
+
+ - Type Record: (Element -> Element) 
 	- Element find(Element)
 	- Iterator begin()
 	- Iterator end()
@@ -39,9 +48,13 @@ The following data types are exposed as common interface:
 	- Set find(Element)
 	- Iterator begin()
 	- Iterator end()
-	- Set union(Set)
-	- Set intersect(Set)
+	- Set union(Set) [extension]
+	- Set intersect(Set) [extension]
 
+ - Type Iterator: (Element -> T) [T in {Element, Set}]
+	- bool next()
+	- Element key()
+	- T value()
 
 
 File format

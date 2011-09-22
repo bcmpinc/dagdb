@@ -10,123 +10,81 @@
 namespace dagdb { //
 namespace interface { //
 
-	class map;
-	//class element;
+	class Element;
+	class Data;
+	class Handle;
+	class Record;
+	class Set;
+	class RecordIterator;
+	class SetIterator;
 
-	/**
-	 * Type used for keys in maps.
-	 */
-	/*class element {
-	public:
-		virtual ~element() {};
-	};
+};
+
+typedef std::shared_ptr<interface::Element> Element;
+typedef std::shared_ptr<interface::Data> Data;
+typedef std::shared_ptr<interface::Handle> Handle;
+typedef std::shared_ptr<interface::Record> Record;
+typedef std::shared_ptr<interface::Set> Set;
+typedef std::shared_ptr<interface::RecordIterator> RecordIterator;
+typedef std::shared_ptr<interface::SetIterator> SetIterator;
+
+namespace interface { //
 	
-	class data : element {
+	// Type Element: Record or Data
+	class Element {
 	public:
-		virtual size_t length() = 0;
-		virtual void read() = 0;
-	};*/
-	typedef int element;
-	
-	/**
-	 * Iterates over the elements in a map.
-	 */
-	class map_iterator {
-	private:
-		class map_iterator_concept {
-		public:
-			virtual void operator++()=0;
-			virtual element key()=0;
-			virtual element value()=0;
-			virtual ~map_iterator_concept() {}
-		};
-		template <class T>
-		class map_iterator_model_fn : public map_iterator_concept {
-		public:
-			map_iterator_model_fn(T m) : ref(m) {}
-			virtual void operator++() { ++ref; }
-			virtual element key() { return ref.key(); }
-			virtual element value() { return ref.value(); }
-		private:
-			T ref;
-		};
-		template <class T>
-		class map_iterator_model_stl : public map_iterator_concept {
-		public:
-			map_iterator_model_stl(T m) : ref(m) {}
-			virtual void operator++() { ++ref; }
-			virtual element key() { return ref->first; }
-			virtual element value() { return ref->second; }
-		private:
-			T ref;
-		};
-		template <class T>
-		class map_iterator_selector {
-		private:
-			static T t;
-			template <class C>
-			static map_iterator_model_fn<T> test(decltype(&C::key)) {}
-			template <class C>
-			static map_iterator_model_stl<T> test(decltype(&C::operator->)) {}
-			template <class C>
-			static void test(...) {}
-		public:
-			static decltype(test<T>(NULL)) type;
-		};
-		std::shared_ptr<map_iterator_concept> ref;
-	public:
-		template <class T> 
-		map_iterator(T m) : ref(new decltype(map_iterator_selector<T>::type)(m)) {}
-		void operator++() { ref->operator++(); }
-		element key() { return ref->key(); }
-		element value() { return ref->value(); }
+		virtual ~Element() {}
 	};
 
-	/**
-	 * Searchable element -> element map.
-	 */
-	class map {
-	private:
-		class map_concept {
-		public:
-			virtual map_iterator find(const element) = 0;
-			virtual map_iterator begin() = 0;
-			virtual map_iterator end() = 0;
-			virtual ~map_concept() {}
-		};
-		template <class T>
-		class map_model : public map_concept {
-		public:
-			map_model(T m) : ref(m) {}
-			virtual map_iterator begin() { return ref.begin(); }
-			virtual map_iterator end() { return ref.end(); }
-			virtual map_iterator find(const element elt) { return ref.find(elt); }
-		private:
-			T ref;
-		};
-		std::shared_ptr<map_concept> ref;
+	// Type Data: (String of bytes)
+	class Data: public Element {
 	public:
-		template <class T> 
-		map(T m) : ref(new map_model<T>(m)) {}
-		
-		/** 
-		 * Searches for the element associated with the given element.
-		 * Returns an empty pointer if the given element is not associated 
-		 * with another element.
-		 */
-		map_iterator find(const element elt) { return ref->find(elt); }
-		
-		/**
-		 * Iterator that can be used to enumerate all elements in the map.
-		 */
-		map_iterator begin() { return ref->begin(); }
-		
-		/**
-		 * Past-end iterator.
-		 */
-		map_iterator end() { return ref->end(); }
+		virtual size_t length()=0;
+		virtual dagdb::Handle open()=0;
+		virtual ~Data() {}
 	};
 	
+	// Type Handle:
+	class Handle {
+	public:
+		virtual size_t read(void * buffer, size_t length)=0;
+		virtual ~Handle() {}
+	};
+
+	// Type Record: (Element -> Element) 
+	class Record : public Element {
+	public:
+		virtual dagdb::Element find(dagdb::Element key)=0;
+		virtual dagdb::RecordIterator begin()=0;
+		virtual dagdb::RecordIterator end()=0;
+		virtual ~Record() {}
+	};
+	
+	// Type Set: (Element -> Set)
+	class Set {
+	public:
+		virtual dagdb::Set find(dagdb::Element)=0;
+		virtual dagdb::SetIterator begin()=0;
+		virtual dagdb::SetIterator end()=0;
+		virtual ~Set() {}
+	};
+	
+	// Type Iterator: (Element -> T) [T in {Element, Set}]
+	class RecordIterator {
+	public:
+		virtual bool next()=0;
+		virtual dagdb::Element key()=0;
+		virtual dagdb::Element value()=0;
+		virtual ~RecordIterator() {}
+	};
+	class SetIterator {
+	public:
+		virtual bool next()=0;
+		virtual dagdb::Element key()=0;
+		virtual dagdb::Set value()=0;
+		virtual ~SetIterator() {}
+	};
+
 };
 };
 
