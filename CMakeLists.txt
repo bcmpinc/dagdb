@@ -10,8 +10,9 @@ set(lib_src
     src/base.cpp
 )
 
-set(test_src
-    src/test.cpp
+set(test_src 
+	src/test.cpp
+	src/base_test.cpp
 )
 
 add_library(dagdb SHARED ${lib_src})
@@ -21,8 +22,9 @@ set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS} -std=c++0x
 if(UNITTEST++_FOUND)
 	add_executable(dagdb_test ${test_src}) 
 	target_link_libraries(dagdb_test dagdb ${UNITTEST++_LIBRARY})
-	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${UNITTEST++_INCLUDE_DIR} -std=c++0x")
+	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${UNITTEST++_INCLUDE_DIR} -std=c++0x ")
 	add_custom_target(run_test ALL valgrind --suppressions=${CMAKE_SOURCE_DIR}/valgrind.supp ./dagdb_test DEPENDS dagdb_test VERBATIM)
 else()
 	message("Warning: unit tests are not compiled.")
 endif()
+
