@@ -11,8 +11,7 @@ set(lib_src
 )
 
 set(test_src 
-	src/test.cpp
-	src/base_test.cpp
+	src/test.cpp src/base.test.cpp
 )
 
 add_library(dagdb SHARED ${lib_src})

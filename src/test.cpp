@@ -1,36 +1,27 @@
+/*
+    DagDB - A lightweight structured database system.
+    Copyright (C) 2011  B.J. Conijn <bcmpinc@sourceforge.net>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <UnitTest++.h>
 #include <map>
 
-#include "dagdb.h"
-
-
-SUITE(dagdb_header) {
-	class myit {
-	public:
-		int key() {return 27;}
-		int value() {return 42;}
-		void operator++() {}
-	};
-	class mymap {
-	public:
-		myit find(int a) {return myit();}
-		myit begin() {return myit();}
-		myit end() {return myit();}
-	};
-	
-	TEST(types) {
-		std::map<int,int> m;
-		m[3]=12;
-		m[5]=99;
-		m[9]=2;
-		
-		mymap n;
-		
-		//interface::map a(m);
-		//a.begin().key().abs();
-		//interface::map b(n);
-	}
-}
+/** @file
+ * @brief Entry point of the unit tests.
+ */
 
 int main(int argc, char **argv) {
 	std::printf("Testing DAGDB\n");
