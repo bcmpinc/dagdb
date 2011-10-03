@@ -17,7 +17,6 @@
 */
 
 #include <UnitTest++.h>
-#include <map>
 
 /** @file
  * @brief Entry point of the unit tests.

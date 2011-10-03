@@ -32,7 +32,6 @@ namespace interface { //
 
 	class Element;
 	class Data;
-	class Handle;
 	class Record;
 	class Set;
 	class RecordIterator;
@@ -42,7 +41,6 @@ namespace interface { //
 
 typedef std::shared_ptr<interface::Element> Element;
 typedef std::shared_ptr<interface::Data> Data;
-typedef std::shared_ptr<interface::Handle> Handle;
 typedef std::shared_ptr<interface::Record> Record;
 typedef std::shared_ptr<interface::Set> Set;
 typedef std::shared_ptr<interface::RecordIterator> RecordIterator;
@@ -60,23 +58,15 @@ namespace interface { //
 	class Data: public Element {
 	public:
 		virtual size_t length()=0;
-		virtual dagdb::Handle open()=0;
+		virtual size_t read(void * buffer, size_t offset, size_t length)=0;
 		virtual ~Data() {}
 	};
 	
-	// Type Handle:
-	class Handle {
-	public:
-		virtual size_t read(void * buffer, size_t length)=0;
-		virtual ~Handle() {}
-	};
-
 	// Type Record: (Element -> Element) 
 	class Record : public Element {
 	public:
 		virtual dagdb::Element find(dagdb::Element key)=0;
-		virtual dagdb::RecordIterator begin()=0;
-		virtual dagdb::RecordIterator end()=0;
+		virtual dagdb::RecordIterator iterator()=0;
 		virtual ~Record() {}
 	};
 	
@@ -84,8 +74,7 @@ namespace interface { //
 	class Set {
 	public:
 		virtual dagdb::Set find(dagdb::Element)=0;
-		virtual dagdb::SetIterator begin()=0;
-		virtual dagdb::SetIterator end()=0;
+		virtual dagdb::SetIterator iterator()=0;
 		virtual ~Set() {}
 	};
 	

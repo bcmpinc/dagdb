@@ -26,13 +26,15 @@
  * to create these initially.
  */
 
-#include "dagdb/interface.h"
+#include <map>
+#include "interface.h"
 
 namespace dagdb { //
 namespace memory { //
 
-Data create_data(void * buffer, size_t length);
+Data create_data(const void *buffer, size_t length);
 
+Record create_record(const std::map<Element,Element> &entries);
 
 };
 };

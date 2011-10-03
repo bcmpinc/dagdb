@@ -26,6 +26,12 @@ using namespace dagdb::storage;
 
 const char *hex = "0123456789abcdef";
 
+std::ostream & operator << (std::ostream &o, const Hash &hh) {
+	char calc[41];
+	hh.write(calc);
+	return o << hh;
+}
+
 SUITE(functions) {
 	TEST(nibble) {
 		// Test that hash nibbles are extracted correctly.
@@ -43,9 +49,7 @@ SUITE(functions) {
 	TEST(hash) {
 		Hash h("", 0);
 		Hash hh("da39a3ee5e6b4b0d3255bfef95601890afd80709");
-		char calc[41];
-		hh.write(calc);
-		CHECK(h == hh);
+		CHECK_EQUAL(h, hh);
 	}
 }
 
