@@ -28,10 +28,10 @@ using namespace dagdb::memory;
 SUITE(memory_create_data) {
 	TEST(text) {
 		// Test that data elements can be created and return the right data.
-		const char * c = "this is a test";
+		const char *c = "this is a test";
 		size_t l = strlen(c);
 		dagdb::Data d = create_data(c, l);
-		
+
 		CHECK_EQUAL(d->length(), l);
 
 		char a[100];
@@ -44,24 +44,24 @@ SUITE(memory_create_data) {
 		// Test that binary data elements can be created and return the right data.
 		size_t l = 1024;
 		uint8_t c[l];
-		for (size_t i=0; i<l; i++) 
-			c[i] = l&0xff;
+		for (size_t i = 0; i < l; i++)
+			c[i] = l & 0xff;
 		dagdb::Data d = create_data(c, l);
-		
+
 		CHECK_EQUAL(d->length(), l);
 
 		uint8_t a[l];
 		size_t n = d->read(a, 0, l);
 		CHECK_EQUAL(n, l);
-		CHECK_ARRAY_EQUAL((char*)a, (char*)c, l);
+		CHECK_ARRAY_EQUAL((char *)a, (char *)c, l);
 	}
 
 	TEST(partial) {
 		// Test that partial data can be obtained.
-		const char * c = "this is a test";
+		const char *c = "this is a test";
 		size_t l = strlen(c);
 		dagdb::Data d = create_data(c, l);
-		
+
 		char a[2];
 		size_t n = d->read(a, 5, 2);
 		CHECK_EQUAL(n, 2u);
@@ -70,9 +70,39 @@ SUITE(memory_create_data) {
 		char b[4];
 		n = d->read(b, 10, 10);
 		CHECK_EQUAL(n, 4u);
-		
+
 		CHECK_ARRAY_EQUAL(b, "test", 4);
 	}
-
 }
 
+SUITE(memory_strings) {
+	TEST(read_and_write) {
+		std::string s = "this is also a test";
+		size_t len = s.length();
+		dagdb::Data d = create_data(s);
+		CHECK_EQUAL(d->length(), len);
+		std::string t = read_data(d);
+		CHECK_EQUAL(t.length(), len);
+		CHECK_EQUAL(s, t);
+	}
+}
+
+SUITE(memory_create_record) {
+	struct RecordFixture {
+		std::map<dagdb::Element, dagdb::Element> map;
+		dagdb::Record r;
+		RecordFixture() {
+			map[create_data("a")] = create_data("12");
+			map[create_data("b")] = create_data("20");
+			map[create_data("c")] = create_data("13");
+			r = create_record(map);
+		}
+	};
+	TEST_FIXTURE(RecordFixture, read) {
+		dagdb::Element e = r->find(create_data("a"));
+		dagdb::Data d;
+		d = std::dynamic_pointer_cast<dagdb::Data>(e);
+		CHECK(d);
+		CHECK_EQUAL(read_data(d), "12");
+	}
+}

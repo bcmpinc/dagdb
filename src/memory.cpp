@@ -43,11 +43,11 @@ public:
 	}
 
 	virtual size_t read(void *buffer, size_t offset, size_t length) {
-		if (offset < 0 || _length <= offset) 
+		if (offset < 0 || _length <= offset)
 			return 0;
 		if (length > _length - offset)
 			length = _length - offset;
-		if (length <= 0) 
+		if (length <= 0)
 			return 0;
 		memcpy(buffer, _buffer + offset, length);
 		return length;
@@ -64,18 +64,18 @@ private:
 public:
 	MemIterator(MemMapPtr m) : m(m), it(m->begin()) {
 	}
-	
+
 	virtual bool next() {
 		++it;
 		return it != m->end();
 	}
-	
+
 	virtual dagdb::Element key() {
 		if (it == m->end())
 			return dagdb::Element();
 		return it->first;
 	}
-	
+
 	virtual dagdb::Element value() {
 		if (it == m->end())
 			return dagdb::Element();
@@ -90,11 +90,11 @@ public:
 	MemRecord(MemMap &entries) {
 		m = MemMapPtr(new MemMap(entries));
 	}
-	
+
 	virtual RecordIterator iterator() {
 		return RecordIterator(new MemIterator(m));
 	}
-	
+
 	virtual dagdb::Element find(dagdb::Element key) {
 		auto it = m->find(key);
 		if (it == m->end())
@@ -111,6 +111,18 @@ Record create_record(MemMap &entries) {
 	return Record(new MemRecord(entries));
 }
 
+Data create_data(std::string s) {
+	return create_data(s.data(), s.length());
+}
+
+std::string read_data(Data d) {
+	int l = d->length();
+	std::string s(l, 0);
+	// The following line is ugly, but seems to work. (the unit test succeeds)
+	// It avoids allocating a temporary buffer and a copy of that buffer.
+	d->read(const_cast<char*>(s.data()), 0, l); 
+	return s;
+}
 
 };
 };

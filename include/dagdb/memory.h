@@ -27,14 +27,16 @@
  */
 
 #include <map>
+#include <string>
 #include "interface.h"
 
 namespace dagdb { //
 namespace memory { //
 
 Data create_data(const void *buffer, size_t length);
-
+Data create_data(std::string s);
 Record create_record(const std::map<Element,Element> &entries);
+std::string read_data(Data d);
 
 };
 };
