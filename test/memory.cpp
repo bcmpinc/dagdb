@@ -101,7 +101,7 @@ SUITE(memory_create_record) {
 	TEST_FIXTURE(RecordFixture, read) {
 		dagdb::Element e = r->find(create_data("a"));
 		dagdb::Data d;
-		d = std::dynamic_pointer_cast<dagdb::Data>(e);
+		//d = std::dynamic_pointer_cast<dagdb::Data>(e);
 		CHECK(d);
 		CHECK_EQUAL(read_data(d), "12");
 	}

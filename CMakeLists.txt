@@ -8,6 +8,7 @@ find_package(UnitTest++)
 
 set(lib_src
     src/base.cpp
+    src/base2.c
 	src/memory.cpp
 )
 
