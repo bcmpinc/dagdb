@@ -20,25 +20,38 @@
 #define DAGDB_BASE2_H
 #include <stdint.h>
 
-#define KEY_LENGTH 20
-typedef uint8_t dagdb_key[KEY_LENGTH];
-typedef unsigned int uint;
-
-// Creation
-uint dagdb_create_trie();
-uint dagdb_create_element(dagdb_key hash, uint pointer);
-uint dagdb_create_data(uint8_t * data);
-uint dagdb_create_kvpair(uint key,uint value);
-
-// Destruction
-void dagdb_delete_trie(uint location);
-void dagdb_delete_element(uint location);
-void dagdb_delete_data(uint location);
-void dagdb_delete_kvpair(uint location);
+#define DAGDB_KEY_LENGTH 20
+typedef uint8_t dagdb_key[DAGDB_KEY_LENGTH];
+typedef unsigned int dagdb_size;
+typedef unsigned int dagdb_pointer;
 
 // Trie related
-int  dagdb_insert(uint trie, uint pointer);
-uint dagdb_find(uint trie, dagdb_key hash);
-int  dagdb_remove(uint trie, dagdb_key hash);
+dagdb_pointer dagdb_trie_create();
+void          dagdb_trie_delete(dagdb_pointer location);
+int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
+dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key hash);
+int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
+
+// Element related
+dagdb_pointer dagdb_element_create (dagdb_key hash, dagdb_pointer pointer);
+void          dagdb_element_delete (dagdb_pointer location);
+dagdb_pointer dagdb_element_data   (dagdb_pointer location);
+dagdb_pointer dagdb_element_backref(dagdb_pointer location);
+
+// Data related
+dagdb_pointer dagdb_data_create(dagdb_size length, uint8_t * data);
+void          dagdb_data_delete(dagdb_pointer location);
+dagdb_size    dagdb_data_length(dagdb_pointer location);
+const uint8_t * dagdb_data_read(dagdb_pointer location);
+
+// KVpair related
+dagdb_pointer dagdb_kvpair_create(dagdb_pointer key,dagdb_pointer value);
+void          dagdb_kvpair_delete(dagdb_pointer location);
+dagdb_pointer dagdb_kvpair_key   (dagdb_pointer location);
+dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
+
+// Other
+int           dagdb_load(const char * database);
+void          dagdb_unload();
 
 #endif 
