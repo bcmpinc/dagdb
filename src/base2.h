@@ -39,10 +39,10 @@ dagdb_pointer dagdb_element_data   (dagdb_pointer location);
 dagdb_pointer dagdb_element_backref(dagdb_pointer location);
 
 // Data related
-dagdb_pointer dagdb_data_create(dagdb_size length, uint8_t * data);
+dagdb_pointer dagdb_data_create(dagdb_size length, const void * data);
 void          dagdb_data_delete(dagdb_pointer location);
 dagdb_size    dagdb_data_length(dagdb_pointer location);
-const uint8_t * dagdb_data_read(dagdb_pointer location);
+const void *  dagdb_data_read(dagdb_pointer location);
 
 // KVpair related
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key,dagdb_pointer value);
@@ -53,5 +53,6 @@ dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
 // Other
 int           dagdb_load(const char * database);
 void          dagdb_unload();
+dagdb_size    dagdb_round_up(dagdb_size v);
 
 #endif 
