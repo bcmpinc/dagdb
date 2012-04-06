@@ -34,6 +34,14 @@ SUITE(base2) {
 		CHECK_EQUAL(0u, dagdb_data_length(p)); // UNDEFINED BEHAVIOR
 	}
 	
+	TEST(element) {
+		dagdb_pointer el = dagdb_element_create((uint8_t*)"01234567890123456789",1000);
+		CHECK(el);
+		CHECK_EQUAL(1000u, dagdb_element_data(el));
+		CHECK(dagdb_element_backref(el));
+		dagdb_element_delete(el);
+	}
+	
 	TEST(unload) {
 		dagdb_unload();
 	}
