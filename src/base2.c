@@ -14,15 +14,15 @@
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
 #define S (sizeof(dagdb_size))
-STATIC_ASSERT(S==sizeof(dagdb_size),same_pointer_size_size);
-STATIC_ASSERT(((S-1)&S)==0,size_power_of_two);
+STATIC_ASSERT(S == sizeof(dagdb_size), same_pointer_size_size);
+STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 
 static int database_fd;
-static void * file;
+static void *file;
 static dagdb_size size;
 
 dagdb_size dagdb_round_up(dagdb_size v) {
-	return  -(~(sizeof(dagdb_pointer)-1)&-v);
+	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 
 /**
@@ -32,7 +32,7 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = size;
 	dagdb_size alength = dagdb_round_up(length) + 8;
 	size += alength;
-	assert(size<=MAX_SIZE);
+	assert(size <= MAX_SIZE);
 	if (ftruncate(database_fd, size)) {
 		perror("dagdb_malloc");
 		abort();
@@ -41,7 +41,7 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
 }
 
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
-	memset(file+location,0,dagdb_round_up(length));
+	memset(file + location, 0, dagdb_round_up(length));
 	// TODO:
 }
 
@@ -49,15 +49,14 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
  * Opens the given file.
  * @returns -1 on failure.
  */
-int dagdb_load(const char* database)
-{
+int dagdb_load(const char *database) {
 	int fd = open(database, O_RDWR | O_CREAT, 0644);
 	if (fd == -1) goto error;
-	
+
 	file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (file == MAP_FAILED) goto error;
 	printf("Database data @ %p\n", file);
-	
+
 	size = lseek(fd, 0, SEEK_END);
 	printf("Database size: %d\n", size);
 
@@ -73,13 +72,12 @@ error:
 }
 
 /**
- * Closes the current database file. 
+ * Closes the current database file.
  * Does nothing if no database file is currently open.
  */
-void dagdb_unload()
-{
+void dagdb_unload() {
 	if (file) {
-		munmap(file, 1<<24);
+		munmap(file, 1 << 24);
 		file = 0;
 	}
 	if (database_fd) {
@@ -89,26 +87,59 @@ void dagdb_unload()
 	}
 }
 
-dagdb_pointer dagdb_data_create(dagdb_size length, const void* data)
-{
+/**
+ * Data item.
+ * S bytes: length
+ * length bytes rounded up to a multiple of S: data
+ */
+dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 	dagdb_pointer r = dagdb_malloc(length + S);
 	LOCATE(dagdb_size, r) = length;
 	memcpy(file + r + S, data, length);
 	return r;
 }
 
-void dagdb_data_delete(dagdb_pointer location)
-{
+void dagdb_data_delete(dagdb_pointer location) {
 	dagdb_size length = LOCATE(int, location);
 	dagdb_free(location, length + S);
 }
 
-dagdb_size dagdb_data_length(dagdb_pointer location)
-{
-	return LOCATE(int,location);
+dagdb_size dagdb_data_length(dagdb_pointer location) {
+	return LOCATE(int, location);
 }
 
-const void* dagdb_data_read(dagdb_pointer location)
-{
+const void *dagdb_data_read(dagdb_pointer location) {
 	return file + location + S;
 }
+
+/**
+ * Element
+ * DAGDB_KEY_LENGTH bytes: key
+ * S bytes: forward pointer
+ * S bytes: pointer to backref. (trie)
+ */
+dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
+	dagdb_pointer r = dagdb_malloc(DAGDB_KEY_LENGTH + 2 * S);
+	memcpy(file + r, hash, DAGDB_KEY_LENGTH);
+	LOCATE(dagdb_pointer, r + DAGDB_KEY_LENGTH) = pointer;
+	LOCATE(dagdb_pointer, r + DAGDB_KEY_LENGTH + S) = 0;
+	return r;
+}
+
+dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
+	return location + DAGDB_KEY_LENGTH + S;
+}
+
+dagdb_pointer dagdb_element_data(dagdb_pointer location)
+{
+	return LOCATE(dagdb_pointer, location + DAGDB_KEY_LENGTH);
+}
+
+void dagdb_element_delete(dagdb_pointer location)
+{
+	// TODO: destroy backref
+	dagdb_free(location, DAGDB_KEY_LENGTH + 2 * S);
+}
+
+
+

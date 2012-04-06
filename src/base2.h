@@ -26,8 +26,6 @@ typedef unsigned int dagdb_size;
 typedef unsigned int dagdb_pointer;
 
 // Trie related
-dagdb_pointer dagdb_trie_create();
-void          dagdb_trie_delete(dagdb_pointer location);
 int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
 dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key hash);
 int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
