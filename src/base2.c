@@ -153,19 +153,16 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 	return r;
 }
 
-void dagdb_kvpair_delete(dagdb_pointer location)
-{
+void dagdb_kvpair_delete(dagdb_pointer location) {
 	// TODO: destroy trie if exists.
 	dagdb_free(location, 2 * S);
 }
 
-dagdb_pointer dagdb_kvpair_key(dagdb_pointer location)
-{
+dagdb_pointer dagdb_kvpair_key(dagdb_pointer location) {
 	return LOCATE(dagdb_pointer, location);
 }
 
-dagdb_pointer dagdb_kvpair_value(dagdb_pointer location)
-{
+dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 	return LOCATE(dagdb_pointer, location + S);
 }
 
