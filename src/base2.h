@@ -26,6 +26,8 @@ typedef unsigned int dagdb_size;
 typedef unsigned int dagdb_pointer;
 
 // Trie related
+dagdb_pointer dagdb_trie_create(); // non-public
+void          dagdb_trie_delete(dagdb_pointer location); // non-public
 int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
 dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key hash);
 int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
@@ -51,6 +53,6 @@ dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
 // Other
 int           dagdb_load(const char * database);
 void          dagdb_unload();
-dagdb_size    dagdb_round_up(dagdb_size v);
+dagdb_size    dagdb_round_up(dagdb_size v); // non-public
 
 #endif 

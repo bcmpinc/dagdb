@@ -42,6 +42,13 @@ SUITE(base2) {
 		dagdb_element_delete(el);
 	}
 	
+	TEST(kvpair) {
+		dagdb_pointer kv = dagdb_kvpair_create(27,42);
+		CHECK(kv);
+		CHECK_EQUAL(27, dagdb_kvpair_key(kv));
+		CHECK_EQUAL(42, dagdb_kvpair_value(kv));
+	}
+	
 	TEST(unload) {
 		dagdb_unload();
 	}

@@ -115,7 +115,7 @@ const void *dagdb_data_read(dagdb_pointer location) {
 /**
  * Element
  * DAGDB_KEY_LENGTH bytes: key
- * S bytes: forward pointer
+ * S bytes: forward pointer (data or trie)
  * S bytes: pointer to backref. (trie)
  */
 dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
@@ -126,19 +126,47 @@ dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
 	return r;
 }
 
+void dagdb_element_delete(dagdb_pointer location) {
+	if (LOCATE(dagdb_pointer, location + DAGDB_KEY_LENGTH + S) != 0) {
+		// TODO: destroy backref
+	}
+	dagdb_free(location, DAGDB_KEY_LENGTH + 2 * S);
+}
+
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
 	return location + DAGDB_KEY_LENGTH + S;
 }
 
-dagdb_pointer dagdb_element_data(dagdb_pointer location)
-{
+dagdb_pointer dagdb_element_data(dagdb_pointer location) {
 	return LOCATE(dagdb_pointer, location + DAGDB_KEY_LENGTH);
 }
 
-void dagdb_element_delete(dagdb_pointer location)
+/**
+ * KV Pair
+ * S bytes: Key (element)
+ * S bytes: Value (element or trie)
+ */
+dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
+	dagdb_pointer r = dagdb_malloc(2 * S);
+	LOCATE(dagdb_pointer, r) = key;
+	LOCATE(dagdb_pointer, r + S) = value;
+	return r;
+}
+
+void dagdb_kvpair_delete(dagdb_pointer location)
 {
-	// TODO: destroy backref
-	dagdb_free(location, DAGDB_KEY_LENGTH + 2 * S);
+	// TODO: destroy trie if exists.
+	dagdb_free(location, 2 * S);
+}
+
+dagdb_pointer dagdb_kvpair_key(dagdb_pointer location)
+{
+	return LOCATE(dagdb_pointer, location);
+}
+
+dagdb_pointer dagdb_kvpair_value(dagdb_pointer location)
+{
+	return LOCATE(dagdb_pointer, location + S);
 }
 
 
