@@ -21,6 +21,14 @@ static int database_fd;
 static void *file;
 static dagdb_size size;
 
+#define HEADER_SIZE 128
+#define FORMAT_VERSION 1
+typedef struct {
+	int magic;
+	int format_version;
+	dagdb_pointer root;
+} header;
+
 dagdb_size dagdb_round_up(dagdb_size v) {
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
@@ -52,6 +60,7 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 int dagdb_load(const char *database) {
 	int fd = open(database, O_RDWR | O_CREAT, 0644);
 	if (fd == -1) goto error;
+	printf("Database file opened %d\n", fd);
 
 	file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (file == MAP_FAILED) goto error;
@@ -59,12 +68,27 @@ int dagdb_load(const char *database) {
 
 	size = lseek(fd, 0, SEEK_END);
 	printf("Database size: %d\n", size);
+	if (size<HEADER_SIZE) {
+		assert(size==0);
+		if (ftruncate(fd, HEADER_SIZE)) {
+			perror("dagdb_load init");
+			abort();
+		}
+		LOCATE(header,0).magic=(int)*"D-DB";
+		LOCATE(header,0).format_version=FORMAT_VERSION;
+		size = HEADER_SIZE;
+	} else {
+		assert(LOCATE(header,0).magic==(int)*"D-DB");
+		assert(LOCATE(header,0).format_version==FORMAT_VERSION);
+		printf("Database format %d accepted.\n", LOCATE(header,0).format_version);
+	}
 
 	database_fd = fd;
 	printf("Opened DB\n");
 	return 0;
 
 error:
+	fflush(stdout);
 	perror("dagdb_load");
 	if (file != MAP_FAILED) file = 0;
 	if (fd != -1) close(fd);
@@ -77,8 +101,10 @@ error:
  */
 void dagdb_unload() {
 	if (file) {
-		munmap(file, 1 << 24);
+		assert(file!=MAP_FAILED);
+		munmap(file, MAX_SIZE);
 		file = 0;
+		printf("Unmapped DB\n");
 	}
 	if (database_fd) {
 		close(database_fd);
@@ -127,9 +153,7 @@ dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
 }
 
 void dagdb_element_delete(dagdb_pointer location) {
-	if (LOCATE(dagdb_pointer, location + DAGDB_KEY_LENGTH + S) != 0) {
-		// TODO: destroy backref
-	}
+	dagdb_trie_destroy(location + DAGDB_KEY_LENGTH + S);
 	dagdb_free(location, DAGDB_KEY_LENGTH + 2 * S);
 }
 
@@ -154,7 +178,7 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 }
 
 void dagdb_kvpair_delete(dagdb_pointer location) {
-	// TODO: destroy trie if exists.
+	dagdb_trie_destroy(location + S);
 	dagdb_free(location, 2 * S);
 }
 
@@ -166,5 +190,38 @@ dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 	return LOCATE(dagdb_pointer, location + S);
 }
 
+/** 
+ * The trie
+ * 16 * S bytes: Pointers (trie or element)
+ */
+dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
+{
 
+}
 
+void dagdb_trie_destroy(dagdb_pointer location)
+{
+	// FIXME: this is wrong!!!
+	if (location==0) return;
+	// TODO: check if this is pointing to a trie.
+	int i;
+	for (i=0; i<16; i++) {
+		dagdb_trie_destroy(LOCATE(dagdb_pointer, location+i*S));
+	}
+	dagdb_free(location, S*16);
+}
+
+int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
+{
+
+}
+
+int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
+{
+
+}
+
+dagdb_pointer dagdb_root()
+{
+	return &(((header*)0)->root);
+}

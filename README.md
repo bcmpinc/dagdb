@@ -15,7 +15,7 @@ The database will be used for storing:
 Requirements for I/O are:
 
  - Database queries will be read only operations.
- - Database updates will not be failure safe. Hence power failure during an update causes the database to be corrupted.
+ - Database updates will not be failure safe. Hence power failure during an update causes the database to be corrupted. (This might be changed in the future.)
 
 Operational requirements:
 

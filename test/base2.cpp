@@ -5,11 +5,11 @@ extern "C" {
 }
 
 SUITE(base2) {
-	TEST(load) {
+	TEST(load_init) {
 		int r = dagdb_load("test.dagdb");
 		CHECK(r==0);
 	}
-	
+
 	TEST(round_up) {
 		CHECK_EQUAL(0u,dagdb_round_up(0));
 		CHECK_EQUAL(4u,dagdb_round_up(1));
@@ -45,11 +45,17 @@ SUITE(base2) {
 	TEST(kvpair) {
 		dagdb_pointer kv = dagdb_kvpair_create(27,42);
 		CHECK(kv);
-		CHECK_EQUAL(27, dagdb_kvpair_key(kv));
-		CHECK_EQUAL(42, dagdb_kvpair_value(kv));
+		CHECK_EQUAL(27u, dagdb_kvpair_key(kv));
+		CHECK_EQUAL(42u, dagdb_kvpair_value(kv));
 	}
 	
 	TEST(unload) {
+		dagdb_unload();
+	}
+	
+	TEST(load_reload) {
+		int r = dagdb_load("test.dagdb");
+		CHECK(r==0);
 		dagdb_unload();
 	}
 	
