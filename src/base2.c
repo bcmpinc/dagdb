@@ -94,7 +94,7 @@ STATIC_ASSERT(DAGDB_TYPE_DATA    < S,pointer_size_too_small_to_contain_type_data
 STATIC_ASSERT(DAGDB_TYPE_ELEMENT < S,pointer_size_too_small_to_contain_type_element);
 STATIC_ASSERT(DAGDB_TYPE_TRIE    < S,pointer_size_too_small_to_contain_type_trie);
 STATIC_ASSERT(DAGDB_TYPE_KVPAIR  < S,pointer_size_too_small_to_contain_type_kvpair);
-dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
+inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 	return location&DAGDB_TYPE_MASK;
 }
 
@@ -129,6 +129,7 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
 /**
  * Frees the requested memory.
  * Currently only zero's out the memory range.
+ * This function also strips off the type information before freeing.
  */
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Strip type information
@@ -157,7 +158,7 @@ typedef struct {
 STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 /**
- * Opens the given file.
+ * Opens the given file. Creates it if it does not yet exist.
  * @returns -1 on failure.
  */
 int dagdb_load(const char *database) {
@@ -252,16 +253,19 @@ dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 }
 
 void dagdb_data_delete(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
 	LOCATE(Data,d,location);
 	dagdb_free(location, sizeof(Data) + d->length);
 }
 
 dagdb_size dagdb_data_length(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
 	LOCATE(Data,d,location);
 	return d->length;
 }
 
 const void *dagdb_data_read(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
 	LOCATE(Data,d,location);
 	return d->data;
 }
@@ -293,17 +297,20 @@ dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_poi
 }
 
 void dagdb_element_delete(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
 	LOCATE(Element, e, location);
 	dagdb_trie_destroy(e->backref);
 	dagdb_free(location, sizeof(Element));
 }
 
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
 	LOCATE(Element, e, location);
 	return e->data;
 }
 
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
 	LOCATE(Element, e, location);
 	return e->backref;
 }
@@ -331,16 +338,19 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 }
 
 void dagdb_kvpair_delete(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
 	dagdb_trie_destroy(location + S);
 	dagdb_free(location, 2 * S);
 }
 
 dagdb_pointer dagdb_kvpair_key(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
 	LOCATE(KVPair, p, location);
 	return p->key;
 }
 
 dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
+	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
 	LOCATE(KVPair, p, location);
 	return p->value;
 }
@@ -357,9 +367,15 @@ typedef struct {
 	dagdb_pointer entry[16];
 } Trie;
 
-dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
+dagdb_pointer dagdb_trie_create()
 {
+	return dagdb_malloc(sizeof(Trie)) | DAGDB_TYPE_TRIE;
+}
 
+void dagdb_trie_delete(dagdb_pointer location)
+{
+	assert(dagdb_get_type(location) == DAGDB_TYPE_TRIE);
+	dagdb_trie_destroy(location);
 }
 
 static void dagdb_trie_destroy(dagdb_pointer location)
@@ -373,23 +389,22 @@ static void dagdb_trie_destroy(dagdb_pointer location)
 	dagdb_free(location, sizeof(Trie));
 }
 
-void dagdb_trie_delete(dagdb_pointer location)
+dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
 {
-	dagdb_trie_destroy(location);
-}
+	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
+	
 
-dagdb_pointer dagdb_trie_create()
-{
-	return dagdb_malloc(sizeof(Trie)) | DAGDB_TYPE_TRIE;
 }
 
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
+	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 
 }
 
 int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
 {
+	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 
 }
 
