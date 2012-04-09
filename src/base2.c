@@ -10,7 +10,7 @@
 #include "base2.h"
 
 #define MAX_SIZE (1<<30)
-#define LOCATE(type,location) (*(type*)(file+location))
+#define LOCATE(type,var,location) type* var = (type*)(file+location)
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
 /**
@@ -38,15 +38,15 @@ static dagdb_size size;
 
 #define HEADER_SIZE 128
 #define FORMAT_VERSION 1
-#define DAGDB_MAGIC ((int)*"D-DB")
+#define DAGDB_MAGIC ((int)*"D-db")
 typedef struct {
 	int magic;
 	int format_version;
 	dagdb_pointer root;
-} header;
+} Header;
 
 // Check that the header is not larger than the space allocated for it.
-STATIC_ASSERT(sizeof(header) <= HEADER_SIZE, header_too_large);
+STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 /**
  * Rounds up the given argument to a multiple of S.
@@ -85,29 +85,35 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
  * @returns -1 on failure.
  */
 int dagdb_load(const char *database) {
+	// Open the database file
 	int fd = open(database, O_RDWR | O_CREAT, 0644);
 	if (fd == -1) goto error;
 	printf("Database file opened %d\n", fd);
 
+	// Map database into memory
 	file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (file == MAP_FAILED) goto error;
 	printf("Database data @ %p\n", file);
 
+	// Obtain length of database file
 	size = lseek(fd, 0, SEEK_END);
 	printf("Database size: %d\n", size);
-	if (size<HEADER_SIZE) {
+	
+	// Check or generate header information.
+	LOCATE(Header,h,0);
+	if (size < HEADER_SIZE) {
 		assert(size==0);
 		if (ftruncate(fd, HEADER_SIZE)) {
 			perror("dagdb_load init");
 			abort();
 		}
-		LOCATE(header,0).magic=DAGDB_MAGIC;
-		LOCATE(header,0).format_version=FORMAT_VERSION;
+		h->magic=DAGDB_MAGIC;
+		h->format_version=FORMAT_VERSION;
 		size = HEADER_SIZE;
 	} else {
-		assert(LOCATE(header,0).magic==DAGDB_MAGIC);
-		assert(LOCATE(header,0).format_version==FORMAT_VERSION);
-		printf("Database format %d accepted.\n", LOCATE(header,0).format_version);
+		assert(h->magic==DAGDB_MAGIC);
+		assert(h->format_version==FORMAT_VERSION);
+		printf("Database format %d accepted.\n", h->format_version);
 	}
 
 	database_fd = fd;
@@ -145,24 +151,33 @@ void dagdb_unload() {
  * S bytes: length
  * length bytes rounded up to a multiple of S: data
  */
+typedef struct {
+	dagdb_size length;
+	char data[0];
+} Data;
+STATIC_ASSERT(sizeof(Data)==S,invalid_data_size);
+
 dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
-	dagdb_pointer r = dagdb_malloc(length + S);
-	LOCATE(dagdb_size, r) = length;
-	memcpy(file + r + S, data, length);
+	dagdb_pointer r = dagdb_malloc(sizeof(Data) + length);
+	LOCATE(Data,d,r);
+	d->length = length;
+	memcpy(d->data, data, length);
 	return r;
 }
 
 void dagdb_data_delete(dagdb_pointer location) {
-	dagdb_size length = LOCATE(int, location);
-	dagdb_free(location, length + S);
+	LOCATE(Data,d,location);
+	dagdb_free(location, sizeof(Data) + d->length);
 }
 
 dagdb_size dagdb_data_length(dagdb_pointer location) {
-	return LOCATE(int, location);
+	LOCATE(Data,d,location);
+	return d->length;
 }
 
 const void *dagdb_data_read(dagdb_pointer location) {
-	return file + location + S;
+	LOCATE(Data,d,location);
+	return d->data;
 }
 
 /**
@@ -171,25 +186,34 @@ const void *dagdb_data_read(dagdb_pointer location) {
  * S bytes: forward pointer (data or trie)
  * S bytes: pointer to backref. (trie)
  */
+typedef struct {
+	unsigned char key[DAGDB_KEY_LENGTH];
+	dagdb_pointer forward;
+	dagdb_pointer backref;
+} Element;
+
 dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
-	dagdb_pointer r = dagdb_malloc(DAGDB_KEY_LENGTH + 2 * S);
-	memcpy(file + r, hash, DAGDB_KEY_LENGTH);
-	LOCATE(dagdb_pointer, r + DAGDB_KEY_LENGTH) = pointer;
-	LOCATE(dagdb_pointer, r + DAGDB_KEY_LENGTH + S) = 0;
+	dagdb_pointer r = dagdb_malloc(sizeof(Element));
+	LOCATE(Element, e, r);
+	memcpy(e->key, hash, DAGDB_KEY_LENGTH);
+	e->forward = pointer;
+	e->backref = 0;
 	return r;
 }
 
 void dagdb_element_delete(dagdb_pointer location) {
-	dagdb_trie_destroy(location + DAGDB_KEY_LENGTH + S);
-	dagdb_free(location, DAGDB_KEY_LENGTH + 2 * S);
+	LOCATE(Element, e, location);
+	dagdb_trie_destroy(e->backref);
+	dagdb_free(location, sizeof(Element));
 }
 
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
-	return location + DAGDB_KEY_LENGTH + S;
+	return location + (int)&(((Element*)0)->backref);
 }
 
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
-	return LOCATE(dagdb_pointer, location + DAGDB_KEY_LENGTH);
+	LOCATE(Element, e, location);
+	return e->forward;
 }
 
 /**
@@ -197,10 +221,16 @@ dagdb_pointer dagdb_element_data(dagdb_pointer location) {
  * S bytes: Key (element)
  * S bytes: Value (element or trie)
  */
+typedef struct  {
+	dagdb_pointer key;
+	dagdb_pointer value;
+} KVPair;
+
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
-	dagdb_pointer r = dagdb_malloc(2 * S);
-	LOCATE(dagdb_pointer, r) = key;
-	LOCATE(dagdb_pointer, r + S) = value;
+	dagdb_pointer r = dagdb_malloc(sizeof(KVPair));
+	LOCATE(KVPair, p, r);
+	p->key = key;
+	p->value = value;
 	return r;
 }
 
@@ -210,17 +240,21 @@ void dagdb_kvpair_delete(dagdb_pointer location) {
 }
 
 dagdb_pointer dagdb_kvpair_key(dagdb_pointer location) {
-	return LOCATE(dagdb_pointer, location);
+	LOCATE(KVPair, p, location);
+	return p->key;
 }
 
 dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
-	return LOCATE(dagdb_pointer, location + S);
+	LOCATE(KVPair, p, location);
+	return p->value;
 }
 
 /** 
  * The trie
  * 16 * S bytes: Pointers (trie or element)
  */
+typedef dagdb_pointer Trie[16];
+
 dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
 {
 
@@ -232,8 +266,9 @@ void dagdb_trie_destroy(dagdb_pointer location)
 	if (location==0) return;
 	// TODO: check if this is pointing to a trie.
 	int i;
+	LOCATE(Trie, t, location);
 	for (i=0; i<16; i++) {
-		dagdb_trie_destroy(LOCATE(dagdb_pointer, location+i*S));
+		dagdb_trie_destroy(t[i]);
 	}
 	dagdb_free(location, S*16);
 }
@@ -250,5 +285,5 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
 
 dagdb_pointer dagdb_root()
 {
-	return &(((header*)0)->root);
+	return &(((Header*)0)->root);
 }
