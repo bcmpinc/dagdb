@@ -74,6 +74,12 @@ static void *file;
  */
 static dagdb_size size;
 
+//////////////////
+// Declarations //
+//////////////////
+
+static void dagdb_trie_destroy(dagdb_pointer location);
+
 //////////////////////
 // Space allocation //
 //////////////////////
@@ -147,6 +153,7 @@ int dagdb_load(const char *database) {
 	// Check or generate header information.
 	LOCATE(Header,h,0);
 	if (size < HEADER_SIZE) {
+		database_fd = fd;
 		assert(size==0);
 		if (ftruncate(fd, HEADER_SIZE)) {
 			perror("dagdb_load init");
@@ -154,14 +161,15 @@ int dagdb_load(const char *database) {
 		}
 		h->magic=DAGDB_MAGIC;
 		h->format_version=FORMAT_VERSION;
+		h->root=dagdb_trie_create();
 		size = HEADER_SIZE;
 	} else {
 		assert(h->magic==DAGDB_MAGIC);
 		assert(h->format_version==FORMAT_VERSION);
 		printf("Database format %d accepted.\n", h->format_version);
+		database_fd = fd;
 	}
 
-	database_fd = fd;
 	printf("Opened DB\n");
 	return 0;
 
@@ -315,14 +323,16 @@ dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
  * The trie
  * 16 * S bytes: Pointers (trie or element)
  */
-typedef dagdb_pointer Trie[16];
+typedef struct {
+	dagdb_pointer entry[16];
+} Trie;
 
 dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
 {
 
 }
 
-void dagdb_trie_destroy(dagdb_pointer location)
+static void dagdb_trie_destroy(dagdb_pointer location)
 {
 	// FIXME: this is wrong!!!
 	if (location==0) return;
@@ -330,9 +340,19 @@ void dagdb_trie_destroy(dagdb_pointer location)
 	int i;
 	LOCATE(Trie, t, location);
 	for (i=0; i<16; i++) {
-		dagdb_trie_destroy(t[i]);
+		dagdb_trie_destroy(t->entry[i]);
 	}
-	dagdb_free(location, S*16);
+	dagdb_free(location, sizeof(Trie));
+}
+
+void dagdb_trie_delete(dagdb_pointer location)
+{
+	dagdb_trie_destroy(location);
+}
+
+dagdb_pointer dagdb_trie_create()
+{
+	return dagdb_malloc(sizeof(Trie));
 }
 
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
@@ -347,5 +367,6 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
 
 dagdb_pointer dagdb_root()
 {
-	return &(((Header*)0)->root);
+	LOCATE(Header, h, 0);
+	return h->root;
 }
