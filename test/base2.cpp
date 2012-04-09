@@ -5,6 +5,10 @@ extern "C" {
 }
 
 SUITE(base2) {
+	TEST(clean) {
+		unlink("test.dagdb");
+	}
+
 	TEST(load_init) {
 		int r = dagdb_load("test.dagdb");
 		CHECK(r==0);
@@ -28,6 +32,7 @@ SUITE(base2) {
 		const char * data = "This is a test";
 		uint len = strlen(data);
 		dagdb_pointer p = dagdb_data_create(len, data);
+		CHECK_EQUAL(DAGDB_TYPE_DATA, dagdb_get_type(p));
 		CHECK_EQUAL(len, dagdb_data_length(p));
 		CHECK_ARRAY_EQUAL(data, (const char*) dagdb_data_read(p), len);
 		dagdb_data_delete(p);
@@ -37,6 +42,7 @@ SUITE(base2) {
 	TEST(element) {
 		dagdb_pointer el = dagdb_element_create((uint8_t*)"01234567890123456789",1000,1337);
 		CHECK(el);
+		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el));
 		CHECK_EQUAL(1000u, dagdb_element_data(el));
 		CHECK_EQUAL(1337u, dagdb_element_backref(el));
 		dagdb_element_delete(el);
@@ -45,10 +51,19 @@ SUITE(base2) {
 	TEST(kvpair) {
 		dagdb_pointer kv = dagdb_kvpair_create(27,42);
 		CHECK(kv);
+		CHECK_EQUAL(DAGDB_TYPE_KVPAIR, dagdb_get_type(kv));
 		CHECK_EQUAL(27u, dagdb_kvpair_key(kv));
 		CHECK_EQUAL(42u, dagdb_kvpair_value(kv));
+		dagdb_kvpair_delete(kv);
 	}
-	
+
+	TEST(trie) {
+		dagdb_pointer t = dagdb_trie_create();
+		CHECK(t);
+		CHECK_EQUAL(DAGDB_TYPE_TRIE, dagdb_get_type(t));
+		dagdb_trie_delete(t);
+	}
+
 	TEST(unload) {
 		dagdb_unload();
 	}
@@ -57,9 +72,5 @@ SUITE(base2) {
 		int r = dagdb_load("test.dagdb");
 		CHECK(r==0);
 		dagdb_unload();
-	}
-	
-	TEST(clean) {
-		unlink("test.dagdb");
 	}
 }

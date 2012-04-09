@@ -20,9 +20,15 @@
 #define MAX_SIZE (1<<30)
 
 /**
- * Defines a pointer of type 'type', named 'var' pointing to the given location in the database file.
+ * Masks the part of a pointer that contains type information.
  */
-#define LOCATE(type,var,location) type* var = (type*)(file+location)
+#define DAGDB_TYPE_MASK (S-1)
+
+/**
+ * Defines a pointer of type 'type', named 'var' pointing to the given location in the database file.
+ * Also handles stripping off the pointers type information.
+ */
+#define LOCATE(type,var,location) type* var = (type*)(file+(location&~DAGDB_TYPE_MASK))
 
 /**
  * Used to perform sanity checks during compilation.
@@ -53,7 +59,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * A 4 byte string that helps identifying a DagDB database.
  * It can also be used to identify the used byte order.
  */
-#define DAGDB_MAGIC ((int)*"D-db")
+#define DAGDB_MAGIC (*(int*)"D-db")
 
 //////////////////////
 // Static variables //
@@ -80,6 +86,18 @@ static dagdb_size size;
 
 static void dagdb_trie_destroy(dagdb_pointer location);
 
+///////////////////
+// Pointer types //
+///////////////////
+
+STATIC_ASSERT(DAGDB_TYPE_DATA    < S,pointer_size_too_small_to_contain_type_data);
+STATIC_ASSERT(DAGDB_TYPE_ELEMENT < S,pointer_size_too_small_to_contain_type_element);
+STATIC_ASSERT(DAGDB_TYPE_TRIE    < S,pointer_size_too_small_to_contain_type_trie);
+STATIC_ASSERT(DAGDB_TYPE_KVPAIR  < S,pointer_size_too_small_to_contain_type_kvpair);
+dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
+	return location&DAGDB_TYPE_MASK;
+}
+
 //////////////////////
 // Space allocation //
 //////////////////////
@@ -97,13 +115,14 @@ dagdb_size dagdb_round_up(dagdb_size v) {
  */
 static dagdb_size dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = size;
-	dagdb_size alength = dagdb_round_up(length) + 8;
+	dagdb_size alength = dagdb_round_up(length);
 	size += alength;
 	assert(size <= MAX_SIZE);
 	if (ftruncate(database_fd, size)) {
 		perror("dagdb_malloc");
 		abort();
 	}
+	assert((r&DAGDB_TYPE_MASK) == 0);
 	return r;
 }
 
@@ -112,8 +131,14 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
  * Currently only zero's out the memory range.
  */
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
+	// Strip type information
+	location &= ~DAGDB_TYPE_MASK;
+	// Do sanity checks
+	assert(location>=HEADER_SIZE);
+	assert(location+length<=size);
+	// Clear memory
 	memset(file + location, 0, dagdb_round_up(length));
-	// TODO:
+	// TODO: add to memory pool & truncate file if possible.
 }
 
 //////////////////////
@@ -154,6 +179,7 @@ int dagdb_load(const char *database) {
 	LOCATE(Header,h,0);
 	if (size < HEADER_SIZE) {
 		database_fd = fd;
+		// Database must be empty.
 		assert(size==0);
 		if (ftruncate(fd, HEADER_SIZE)) {
 			perror("dagdb_load init");
@@ -164,6 +190,9 @@ int dagdb_load(const char *database) {
 		h->root=dagdb_trie_create();
 		size = HEADER_SIZE;
 	} else {
+		// database size must be a multiple of S
+		assert((size&DAGDB_TYPE_MASK)==0); 
+		// check headers.
 		assert(h->magic==DAGDB_MAGIC);
 		assert(h->format_version==FORMAT_VERSION);
 		printf("Database format %d accepted.\n", h->format_version);
@@ -219,7 +248,7 @@ dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 	LOCATE(Data,d,r);
 	d->length = length;
 	memcpy(d->data, data, length);
-	return r;
+	return r | DAGDB_TYPE_DATA;
 }
 
 void dagdb_data_delete(dagdb_pointer location) {
@@ -260,7 +289,7 @@ dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_poi
 	memcpy(e->key, hash, DAGDB_KEY_LENGTH);
 	e->data = data;
 	e->backref = backref;
-	return r;
+	return r | DAGDB_TYPE_ELEMENT;
 }
 
 void dagdb_element_delete(dagdb_pointer location) {
@@ -298,7 +327,7 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 	LOCATE(KVPair, p, r);
 	p->key = key;
 	p->value = value;
-	return r;
+	return r | DAGDB_TYPE_KVPAIR;
 }
 
 void dagdb_kvpair_delete(dagdb_pointer location) {
@@ -335,9 +364,7 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
 
 static void dagdb_trie_destroy(dagdb_pointer location)
 {
-	// FIXME: this is wrong!!!
-	if (location==0) return;
-	// TODO: check if this is pointing to a trie.
+	if (dagdb_get_type(location) != DAGDB_TYPE_TRIE) return;
 	int i;
 	LOCATE(Trie, t, location);
 	for (i=0; i<16; i++) {
@@ -353,7 +380,7 @@ void dagdb_trie_delete(dagdb_pointer location)
 
 dagdb_pointer dagdb_trie_create()
 {
-	return dagdb_malloc(sizeof(Trie));
+	return dagdb_malloc(sizeof(Trie)) | DAGDB_TYPE_TRIE;
 }
 
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)

@@ -25,6 +25,13 @@ typedef uint8_t dagdb_key[DAGDB_KEY_LENGTH];
 typedef unsigned int dagdb_size;
 typedef unsigned int dagdb_pointer;
 
+typedef enum {
+	DAGDB_TYPE_DATA,
+	DAGDB_TYPE_ELEMENT,
+	DAGDB_TYPE_TRIE,
+	DAGDB_TYPE_KVPAIR,
+} dagdb_pointer_type;
+
 // Trie related
 dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
@@ -55,5 +62,6 @@ int           dagdb_load(const char * database);
 void          dagdb_unload();
 dagdb_size    dagdb_round_up(dagdb_size v); // non-public
 dagdb_pointer dagdb_root();
+dagdb_pointer_type dagdb_get_type(dagdb_pointer location);
 
 #endif 
