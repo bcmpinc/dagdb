@@ -36,7 +36,7 @@ typedef enum {
 dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
 int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
-dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key hash);
+dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key key);
 int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
 
 // Element related
@@ -49,7 +49,7 @@ dagdb_pointer dagdb_element_backref(dagdb_pointer location);
 dagdb_pointer dagdb_data_create(dagdb_size length, const void * data);
 void          dagdb_data_delete(dagdb_pointer location);
 dagdb_size    dagdb_data_length(dagdb_pointer location);
-const void *  dagdb_data_read(dagdb_pointer location);
+const void *  dagdb_data_read  (dagdb_pointer location);
 
 // KVpair related
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key,dagdb_pointer value);

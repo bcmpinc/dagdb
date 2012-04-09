@@ -84,7 +84,6 @@ static dagdb_size size;
 // Declarations //
 //////////////////
 
-static void dagdb_trie_destroy(dagdb_pointer location);
 
 ///////////////////
 // Pointer types //
@@ -298,8 +297,6 @@ dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_poi
 
 void dagdb_element_delete(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
-	LOCATE(Element, e, location);
-	dagdb_trie_destroy(e->backref);
 	dagdb_free(location, sizeof(Element));
 }
 
@@ -330,6 +327,7 @@ typedef struct  {
 } KVPair;
 
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
+	assert(dagdb_get_type(key) == DAGDB_TYPE_ELEMENT);
 	dagdb_pointer r = dagdb_malloc(sizeof(KVPair));
 	LOCATE(KVPair, p, r);
 	p->key = key;
@@ -339,7 +337,6 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 
 void dagdb_kvpair_delete(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
-	dagdb_trie_destroy(location + S);
 	dagdb_free(location, 2 * S);
 }
 
@@ -372,34 +369,72 @@ dagdb_pointer dagdb_trie_create()
 	return dagdb_malloc(sizeof(Trie)) | DAGDB_TYPE_TRIE;
 }
 
+/**
+ * Recursively removes this try.
+ */
 void dagdb_trie_delete(dagdb_pointer location)
 {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_TRIE);
-	dagdb_trie_destroy(location);
-}
-
-static void dagdb_trie_destroy(dagdb_pointer location)
-{
-	if (dagdb_get_type(location) != DAGDB_TYPE_TRIE) return;
 	int i;
 	LOCATE(Trie, t, location);
 	for (i=0; i<16; i++) {
-		dagdb_trie_destroy(t->entry[i]);
+		if (dagdb_get_type(t->entry[i]) == DAGDB_TYPE_TRIE)
+			dagdb_trie_delete(t->entry[i]);
 	}
 	dagdb_free(location, sizeof(Trie));
 }
 
-dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key hash)
+dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key key)
 {
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
 
 }
 
+static int nibble(dagdb_key key, int index) {
+	assert(index >= 0);
+	assert(index < 2*DAGDB_KEY_LENGTH);
+	if (index&1)
+		return (key[index>>1]>>4)&0xf;
+	else
+		return key[index>>1]&0xf;
+}
+
+/**
+ * Inserts the given pointer into the trie.
+ * The pointer must be an Element or KVPair.
+ * Returns 1 if the element is indeed added to the trie.
+ * Returns 0 if the element was already in the trie.
+ */
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
-
+	
+	// Obtain the key.
+	if (dagdb_get_type(pointer)==DAGDB_TYPE_KVPAIR) {
+		LOCATE(KVPair,kv,pointer);
+		pointer = kv->key;
+	}
+	assert(dagdb_get_type(pointer)==DAGDB_TYPE_ELEMENT);
+	LOCATE(Element,e,pointer);
+	
+	// Traverse the trie.
+	int i;
+	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		LOCATE(Trie, t, trie);
+		int n = nibble(e->key, i);
+		if (t->entry[n]==0) {
+			t->entry[n] = pointer;
+			return 1;
+		}
+		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+			trie = t->entry[n];
+		} else {
+			
+		}
+	}
+	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
+	abort();
 }
 
 int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)

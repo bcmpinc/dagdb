@@ -49,10 +49,11 @@ SUITE(base2) {
 	}
 	
 	TEST(kvpair) {
-		dagdb_pointer kv = dagdb_kvpair_create(27,42);
+		dagdb_pointer key = 1000 | DAGDB_TYPE_ELEMENT;
+		dagdb_pointer kv = dagdb_kvpair_create(key,42);
 		CHECK(kv);
 		CHECK_EQUAL(DAGDB_TYPE_KVPAIR, dagdb_get_type(kv));
-		CHECK_EQUAL(27u, dagdb_kvpair_key(kv));
+		CHECK_EQUAL(key, dagdb_kvpair_key(kv));
 		CHECK_EQUAL(42u, dagdb_kvpair_value(kv));
 		dagdb_kvpair_delete(kv);
 	}
