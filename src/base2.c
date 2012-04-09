@@ -9,17 +9,55 @@
 
 #include "base2.h"
 
+/////////////
+// Macro's //
+/////////////
+
+/**
+ * Maximum amount of space (in bytes) that the database is allowed to use.
+ * TODO: Remove this limit.
+ */
 #define MAX_SIZE (1<<30)
+
+/**
+ * Defines a pointer of type 'type', named 'var' pointing to the given location in the database file.
+ */
 #define LOCATE(type,var,location) type* var = (type*)(file+location)
+
+/**
+ * Used to perform sanity checks during compilation.
+ */
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
 /**
  * The size of a dagdb_pointer or dagdb_size variable.
  * These two are always of equal length.
+ * It will also be a power of two.
  */
 #define S (sizeof(dagdb_size))
 STATIC_ASSERT(S == sizeof(dagdb_size), same_pointer_size_size);
 STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
+
+/**
+ * The amount of space (in bytes) reserved for the database header. 
+ */
+#define HEADER_SIZE 128
+
+/**
+ * Counter for the database format. Incremented whenever a format change
+ * is incompatible with previous versions of this library.
+ */
+#define FORMAT_VERSION 1
+
+/**
+ * A 4 byte string that helps identifying a DagDB database.
+ * It can also be used to identify the used byte order.
+ */
+#define DAGDB_MAGIC ((int)*"D-db")
+
+//////////////////////
+// Static variables //
+//////////////////////
 
 /**
  * The file descriptor of the currently opened database.
@@ -36,17 +74,9 @@ static void *file;
  */
 static dagdb_size size;
 
-#define HEADER_SIZE 128
-#define FORMAT_VERSION 1
-#define DAGDB_MAGIC ((int)*"D-db")
-typedef struct {
-	int magic;
-	int format_version;
-	dagdb_pointer root;
-} Header;
-
-// Check that the header is not larger than the space allocated for it.
-STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
+//////////////////////
+// Space allocation //
+//////////////////////
 
 /**
  * Rounds up the given argument to a multiple of S.
@@ -79,6 +109,21 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	memset(file + location, 0, dagdb_round_up(length));
 	// TODO:
 }
+
+//////////////////////
+// Database loading //
+//////////////////////
+
+/**
+ * Stores some basic information about the database.
+ * The size of this header cannot exceed HEADER_SIZE.
+ */
+typedef struct {
+	int magic;
+	int format_version;
+	dagdb_pointer root;
+} Header;
+STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 /**
  * Opens the given file.
@@ -146,6 +191,10 @@ void dagdb_unload() {
 	}
 }
 
+////////////////
+// Data items //
+////////////////
+
 /**
  * Data item.
  * S bytes: length
@@ -179,6 +228,11 @@ const void *dagdb_data_read(dagdb_pointer location) {
 	LOCATE(Data,d,location);
 	return d->data;
 }
+
+
+//////////////
+// Elements //
+//////////////
 
 /**
  * Element
@@ -216,6 +270,10 @@ dagdb_pointer dagdb_element_data(dagdb_pointer location) {
 	return e->forward;
 }
 
+//////////////
+// KV Pairs //
+//////////////
+
 /**
  * KV Pair
  * S bytes: Key (element)
@@ -248,6 +306,10 @@ dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 	LOCATE(KVPair, p, location);
 	return p->value;
 }
+
+///////////
+// Tries //
+///////////
 
 /** 
  * The trie
