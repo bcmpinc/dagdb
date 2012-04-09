@@ -250,16 +250,16 @@ const void *dagdb_data_read(dagdb_pointer location) {
  */
 typedef struct {
 	unsigned char key[DAGDB_KEY_LENGTH];
-	dagdb_pointer forward;
+	dagdb_pointer data;
 	dagdb_pointer backref;
 } Element;
 
-dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer pointer) {
+dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
 	LOCATE(Element, e, r);
 	memcpy(e->key, hash, DAGDB_KEY_LENGTH);
-	e->forward = pointer;
-	e->backref = 0;
+	e->data = data;
+	e->backref = backref;
 	return r;
 }
 
@@ -269,13 +269,14 @@ void dagdb_element_delete(dagdb_pointer location) {
 	dagdb_free(location, sizeof(Element));
 }
 
-dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
-	return location + (int)&(((Element*)0)->backref);
-}
-
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
 	LOCATE(Element, e, location);
-	return e->forward;
+	return e->data;
+}
+
+dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
+	LOCATE(Element, e, location);
+	return e->backref;
 }
 
 //////////////

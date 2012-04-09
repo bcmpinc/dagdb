@@ -33,7 +33,7 @@ dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key hash);
 int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
 
 // Element related
-dagdb_pointer dagdb_element_create (dagdb_key hash, dagdb_pointer pointer);
+dagdb_pointer dagdb_element_create (dagdb_key hash, dagdb_pointer data, dagdb_pointer backref);
 void          dagdb_element_delete (dagdb_pointer location);
 dagdb_pointer dagdb_element_data   (dagdb_pointer location);
 dagdb_pointer dagdb_element_backref(dagdb_pointer location);
