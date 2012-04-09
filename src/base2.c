@@ -13,28 +13,51 @@
 #define LOCATE(type,location) (*(type*)(file+location))
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 
+/**
+ * The size of a dagdb_pointer or dagdb_size variable.
+ * These two are always of equal length.
+ */
 #define S (sizeof(dagdb_size))
 STATIC_ASSERT(S == sizeof(dagdb_size), same_pointer_size_size);
 STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 
+/**
+ * The file descriptor of the currently opened database.
+ */
 static int database_fd;
+
+/**
+ * Pointer to the data of the file in memory.
+ */
 static void *file;
+
+/**
+ * The current size of the currently opened database.
+ */
 static dagdb_size size;
 
 #define HEADER_SIZE 128
 #define FORMAT_VERSION 1
+#define DAGDB_MAGIC ((int)*"D-DB")
 typedef struct {
 	int magic;
 	int format_version;
 	dagdb_pointer root;
 } header;
 
+// Check that the header is not larger than the space allocated for it.
+STATIC_ASSERT(sizeof(header) <= HEADER_SIZE, header_too_large);
+
+/**
+ * Rounds up the given argument to a multiple of S.
+ */
 dagdb_size dagdb_round_up(dagdb_size v) {
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 
 /**
  * Allocates the requested amount of bytes.
+ * Currently always enlarges the file by 'length'.
  */
 static dagdb_size dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = size;
@@ -48,6 +71,10 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
 	return r;
 }
 
+/**
+ * Frees the requested memory.
+ * Currently only zero's out the memory range.
+ */
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	memset(file + location, 0, dagdb_round_up(length));
 	// TODO:
@@ -74,11 +101,11 @@ int dagdb_load(const char *database) {
 			perror("dagdb_load init");
 			abort();
 		}
-		LOCATE(header,0).magic=(int)*"D-DB";
+		LOCATE(header,0).magic=DAGDB_MAGIC;
 		LOCATE(header,0).format_version=FORMAT_VERSION;
 		size = HEADER_SIZE;
 	} else {
-		assert(LOCATE(header,0).magic==(int)*"D-DB");
+		assert(LOCATE(header,0).magic==DAGDB_MAGIC);
 		assert(LOCATE(header,0).format_version==FORMAT_VERSION);
 		printf("Database format %d accepted.\n", LOCATE(header,0).format_version);
 	}
