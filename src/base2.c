@@ -25,10 +25,10 @@
 #define DAGDB_TYPE_MASK (S-1)
 
 /**
- * Defines a pointer of type 'type', named 'var' pointing to the given location in the database file.
- * Also handles stripping off the pointers type information.
+ * Returns a pointer of type 'type', pointing to the given location in the database file.
+ * Also handles stripping off the pointer's type information.
  */
-#define LOCATE(type,var,location) type* var = (type*)(file+(location&~DAGDB_TYPE_MASK))
+#define LOCATE(type,location) (type*)(file+(location&~DAGDB_TYPE_MASK))
 
 /**
  * Used to perform sanity checks during compilation.
@@ -148,6 +148,7 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 /**
  * Stores some basic information about the database.
  * The size of this header cannot exceed HEADER_SIZE.
+ * TODO: make tries much more space efficient.
  */
 typedef struct {
 	int magic;
@@ -176,7 +177,7 @@ int dagdb_load(const char *database) {
 	printf("Database size: %d\n", size);
 	
 	// Check or generate header information.
-	LOCATE(Header,h,0);
+	Header* h = LOCATE(Header,0);
 	if (size < HEADER_SIZE) {
 		database_fd = fd;
 		// Database must be empty.
@@ -187,8 +188,8 @@ int dagdb_load(const char *database) {
 		}
 		h->magic=DAGDB_MAGIC;
 		h->format_version=FORMAT_VERSION;
-		h->root=dagdb_trie_create();
 		size = HEADER_SIZE;
+		h->root=dagdb_trie_create();
 	} else {
 		// database size must be a multiple of S
 		assert((size&DAGDB_TYPE_MASK)==0); 
@@ -245,7 +246,7 @@ STATIC_ASSERT(sizeof(Data)==S,invalid_data_size);
 
 dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Data) + length);
-	LOCATE(Data,d,r);
+	Data* d = LOCATE(Data,r);
 	d->length = length;
 	memcpy(d->data, data, length);
 	return r | DAGDB_TYPE_DATA;
@@ -253,19 +254,19 @@ dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 
 void dagdb_data_delete(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
-	LOCATE(Data,d,location);
+	Data* d = LOCATE(Data,location);
 	dagdb_free(location, sizeof(Data) + d->length);
 }
 
 dagdb_size dagdb_data_length(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
-	LOCATE(Data,d,location);
+	Data* d = LOCATE(Data,location);
 	return d->length;
 }
 
 const void *dagdb_data_read(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
-	LOCATE(Data,d,location);
+	Data* d = LOCATE(Data,location);
 	return d->data;
 }
 
@@ -288,7 +289,7 @@ typedef struct {
 
 dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
-	LOCATE(Element, e, r);
+	Element*  e = LOCATE(Element, r);
 	memcpy(e->key, hash, DAGDB_KEY_LENGTH);
 	e->data = data;
 	e->backref = backref;
@@ -302,13 +303,13 @@ void dagdb_element_delete(dagdb_pointer location) {
 
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
-	LOCATE(Element, e, location);
+	Element*  e = LOCATE(Element, location);
 	return e->data;
 }
 
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
-	LOCATE(Element, e, location);
+	Element*  e = LOCATE(Element, location);
 	return e->backref;
 }
 
@@ -329,7 +330,7 @@ typedef struct  {
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 	assert(dagdb_get_type(key) == DAGDB_TYPE_ELEMENT);
 	dagdb_pointer r = dagdb_malloc(sizeof(KVPair));
-	LOCATE(KVPair, p, r);
+	KVPair*  p = LOCATE(KVPair, r);
 	p->key = key;
 	p->value = value;
 	return r | DAGDB_TYPE_KVPAIR;
@@ -342,13 +343,13 @@ void dagdb_kvpair_delete(dagdb_pointer location) {
 
 dagdb_pointer dagdb_kvpair_key(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
-	LOCATE(KVPair, p, location);
+	KVPair*  p = LOCATE(KVPair, location);
 	return p->key;
 }
 
 dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
-	LOCATE(KVPair, p, location);
+	KVPair*  p = LOCATE(KVPair, location);
 	return p->value;
 }
 
@@ -381,7 +382,7 @@ void dagdb_trie_delete(dagdb_pointer location)
 {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_TRIE);
 	int i;
-	LOCATE(Trie, t, location);
+	Trie*  t = LOCATE(Trie, location);
 	for (i=0; i<16; i++) {
 		if (dagdb_get_type(t->entry[i]) == DAGDB_TYPE_TRIE)
 			dagdb_trie_delete(t->entry[i]);
@@ -407,12 +408,14 @@ static int nibble(uint8_t * key, int index) {
 
 static key obtain_key(dagdb_pointer pointer) {
 	// Obtain the key.
-	if (dagdb_get_type(pointer)==DAGDB_TYPE_KVPAIR) {
-		LOCATE(KVPair,kv,pointer);
+	if (dagdb_get_type(pointer) == DAGDB_TYPE_KVPAIR) {
+		assert(pointer>=HEADER_SIZE);
+		KVPair* kv = LOCATE(KVPair,pointer);
 		pointer = kv->key;
 	}
-	assert(dagdb_get_type(pointer)==DAGDB_TYPE_ELEMENT);
-	LOCATE(Element,e,pointer);
+	assert(pointer>=HEADER_SIZE);
+	assert(dagdb_get_type(pointer) == DAGDB_TYPE_ELEMENT);
+	Element* e = LOCATE(Element,pointer);
 	return e->key;
 }
 
@@ -424,6 +427,7 @@ static key obtain_key(dagdb_pointer pointer) {
  */
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
+	assert(trie>=HEADER_SIZE);
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
 	key k = obtain_key(pointer);
@@ -431,7 +435,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 	// Traverse the trie.
 	int i;
 	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
-		LOCATE(Trie, t, trie);
+		Trie*  t = LOCATE(Trie, trie);
 		int n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so we can insert it here.
@@ -448,21 +452,19 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 			if (same == 0) return 0;
 			
 			// Create new tries until we have a differing nibble
-			int m=nibble(l,i);
+			int m = nibble(l,i);
 			while (n == m) {
 				dagdb_pointer newtrie = dagdb_trie_create();
-				LOCATE(Trie, t2, newtrie);
+				Trie*  t2 = LOCATE(Trie, newtrie);
 				i++;
 				
 				// Push the existing element's pointer into the new trie.
-				LOCATE(Trie, t, trie);
-				t2->entry[m] = t->entry[m];
-				t->entry[m] = newtrie;
+				m = nibble(l,i);
+				t2->entry[m] = t->entry[n];
+				t->entry[n] = newtrie;
 				n = nibble(k,i);
-				m = nibble(k,i);
-				trie = t2;
+				t = t2;
 			}
-			LOCATE(Trie, t, trie);
 			t->entry[n] = pointer;
 		}
 	}
@@ -478,6 +480,7 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
 
 dagdb_pointer dagdb_root()
 {
-	LOCATE(Header, h, 0);
+	Header*  h = LOCATE(Header, 0);
+	assert(h->root>=HEADER_SIZE);
 	return h->root;
 }

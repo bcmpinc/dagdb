@@ -1,7 +1,7 @@
 #include <UnitTest++.h>
 extern "C" {
-#include "base2.h"
 #include <string.h>
+#include "base2.h"
 }
 
 SUITE(base2) {
@@ -63,6 +63,22 @@ SUITE(base2) {
 		CHECK(t);
 		CHECK_EQUAL(DAGDB_TYPE_TRIE, dagdb_get_type(t));
 		dagdb_trie_delete(t);
+	}
+	
+	TEST(insertion) {
+		int r;
+		dagdb_pointer el1 = dagdb_element_create((uint8_t*)"01234567890123456789",1,2);
+		dagdb_pointer el2 = dagdb_element_create((uint8_t*)"01230567890123456789",3,4);
+		dagdb_pointer el3 = dagdb_element_create((uint8_t*)"01234567890123456789",5,6);
+		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el1));
+		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el2));
+		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el3));
+		r = dagdb_trie_insert(dagdb_root(), el1);
+		CHECK_EQUAL(1,r);
+		r = dagdb_trie_insert(dagdb_root(), el2);
+		CHECK_EQUAL(1,r);
+		r = dagdb_trie_insert(dagdb_root(), el3);
+		CHECK_EQUAL(0,r);
 	}
 
 	TEST(unload) {
