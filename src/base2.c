@@ -356,6 +356,11 @@ dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 // Tries //
 ///////////
 
+/**
+ * To allow us to store a pointer to a key.
+ */
+typedef uint8_t * key;
+
 /** 
  * The trie
  * 16 * S bytes: Pointers (trie or element)
@@ -391,13 +396,24 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key key)
 
 }
 
-static int nibble(dagdb_key key, int index) {
+static int nibble(uint8_t * key, int index) {
 	assert(index >= 0);
 	assert(index < 2*DAGDB_KEY_LENGTH);
 	if (index&1)
 		return (key[index>>1]>>4)&0xf;
 	else
 		return key[index>>1]&0xf;
+}
+
+static key obtain_key(dagdb_pointer pointer) {
+	// Obtain the key.
+	if (dagdb_get_type(pointer)==DAGDB_TYPE_KVPAIR) {
+		LOCATE(KVPair,kv,pointer);
+		pointer = kv->key;
+	}
+	assert(dagdb_get_type(pointer)==DAGDB_TYPE_ELEMENT);
+	LOCATE(Element,e,pointer);
+	return e->key;
 }
 
 /**
@@ -410,27 +426,44 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
-	// Obtain the key.
-	if (dagdb_get_type(pointer)==DAGDB_TYPE_KVPAIR) {
-		LOCATE(KVPair,kv,pointer);
-		pointer = kv->key;
-	}
-	assert(dagdb_get_type(pointer)==DAGDB_TYPE_ELEMENT);
-	LOCATE(Element,e,pointer);
+	key k = obtain_key(pointer);
 	
 	// Traverse the trie.
 	int i;
 	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
 		LOCATE(Trie, t, trie);
-		int n = nibble(e->key, i);
-		if (t->entry[n]==0) {
+		int n = nibble(k, i);
+		if (t->entry[n]==0) { 
+			// Spot is empty, so we can insert it here.
 			t->entry[n] = pointer;
 			return 1;
 		}
 		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+			// Descend into the already existing sub-trie
 			trie = t->entry[n];
 		} else {
+			// Check if the element here has the same hash.
+			key l = obtain_key(t->entry[n]);
+			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			if (same == 0) return 0;
 			
+			// Create new tries until we have a differing nibble
+			int m=nibble(l,i);
+			while (n == m) {
+				dagdb_pointer newtrie = dagdb_trie_create();
+				LOCATE(Trie, t2, newtrie);
+				i++;
+				
+				// Push the existing element's pointer into the new trie.
+				LOCATE(Trie, t, trie);
+				t2->entry[m] = t->entry[m];
+				t->entry[m] = newtrie;
+				n = nibble(k,i);
+				m = nibble(k,i);
+				trie = t2;
+			}
+			LOCATE(Trie, t, trie);
+			t->entry[n] = pointer;
 		}
 	}
 	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
