@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 #define DAGDB_KEY_LENGTH 20
-typedef uint8_t dagdb_key[DAGDB_KEY_LENGTH];
+typedef const uint8_t dagdb_key[DAGDB_KEY_LENGTH];
 typedef unsigned int dagdb_size;
 typedef unsigned int dagdb_pointer;
 
@@ -37,10 +37,10 @@ dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
 int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
 dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key key);
-int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash);
+int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key key);
 
 // Element related
-dagdb_pointer dagdb_element_create (dagdb_key hash, dagdb_pointer data, dagdb_pointer backref);
+dagdb_pointer dagdb_element_create (dagdb_key key, dagdb_pointer data, dagdb_pointer backref);
 void          dagdb_element_delete (dagdb_pointer location);
 dagdb_pointer dagdb_element_data   (dagdb_pointer location);
 dagdb_pointer dagdb_element_backref(dagdb_pointer location);

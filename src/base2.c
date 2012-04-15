@@ -287,10 +287,10 @@ typedef struct {
 	dagdb_pointer backref;
 } Element;
 
-dagdb_pointer dagdb_element_create(dagdb_key hash, dagdb_pointer data, dagdb_pointer backref) {
+dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
 	Element*  e = LOCATE(Element, r);
-	memcpy(e->key, hash, DAGDB_KEY_LENGTH);
+	memcpy(e->key, key, DAGDB_KEY_LENGTH);
 	e->data = data;
 	e->backref = backref;
 	return r | DAGDB_TYPE_ELEMENT;
@@ -390,14 +390,7 @@ void dagdb_trie_delete(dagdb_pointer location)
 	dagdb_free(location, sizeof(Trie));
 }
 
-dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key key)
-{
-	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
-	
-
-}
-
-static int nibble(uint8_t * key, int index) {
+static int nibble(const uint8_t * key, int index) {
 	assert(index >= 0);
 	assert(index < 2*DAGDB_KEY_LENGTH);
 	if (index&1)
@@ -406,6 +399,9 @@ static int nibble(uint8_t * key, int index) {
 		return key[index>>1]&0xf;
 }
 
+/**
+ * Retrieves the key from an Element or from the key part of the KVPair.
+ */
 static key obtain_key(dagdb_pointer pointer) {
 	// Obtain the key.
 	if (dagdb_get_type(pointer) == DAGDB_TYPE_KVPAIR) {
@@ -417,6 +413,41 @@ static key obtain_key(dagdb_pointer pointer) {
 	assert(dagdb_get_type(pointer) == DAGDB_TYPE_ELEMENT);
 	Element* e = LOCATE(Element,pointer);
 	return e->key;
+}
+
+/**
+ * Retrieves the pointer associated with the given key.
+ */
+dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
+{
+	assert(trie>=HEADER_SIZE);
+	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
+	
+	// Traverse the trie.
+	int i;
+	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		Trie*  t = LOCATE(Trie, trie);
+		int n = nibble(k, i);
+		if (t->entry[n]==0) { 
+			// Spot is empty, so return null pointer
+			return 0;
+		}
+		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+			// Descend into the already existing sub-trie
+			trie = t->entry[n];
+		} else {
+			// Check if the element here has the same key.
+			key l = obtain_key(t->entry[n]);
+			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			if (same == 0) return t->entry[n];
+			
+			// The key's differ, so the requested key is not in this trie.
+			return 0;
+		}
+	}
+	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
+	abort();
+
 }
 
 /**
@@ -446,7 +477,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 			// Descend into the already existing sub-trie
 			trie = t->entry[n];
 		} else {
-			// Check if the element here has the same hash.
+			// Check if the element here has the same key.
 			key l = obtain_key(t->entry[n]);
 			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
 			if (same == 0) return 0;
@@ -472,7 +503,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 	abort();
 }
 
-int dagdb_trie_remove(dagdb_pointer trie, dagdb_key hash)
+int dagdb_trie_remove(dagdb_pointer trie, dagdb_key key)
 {
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 
