@@ -60,7 +60,6 @@ dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
 // Other
 int           dagdb_load(const char * database);
 void          dagdb_unload();
-dagdb_size    dagdb_round_up(dagdb_size v); // non-public
 dagdb_pointer dagdb_root();
 dagdb_pointer_type dagdb_get_type(dagdb_pointer location);
 

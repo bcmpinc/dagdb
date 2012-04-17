@@ -1,0 +1,23 @@
+# Locate CUNIT
+# This module defines
+# CUNIT_LIBRARY
+# CUNIT_FOUND, if false, do not try to link to gdal
+# CUNIT_INCLUDE_DIR, where to find the headers
+#
+
+FIND_PATH(CUNIT_INCLUDE_DIR CUnit/CUnit.h)
+
+FIND_LIBRARY(CUNIT_LIBRARY
+    NAMES cunit
+)
+
+SET(CUNIT_FOUND "NO")
+IF(CUNIT_LIBRARY AND CUNIT_INCLUDE_DIR)
+    SET(CUNIT_FOUND "YES")
+    MESSAGE(STATUS "Found cunit: '${CUNIT_LIBRARY}' and header in '${CUNIT_INCLUDE_DIR}'")
+ENDIF(CUNIT_LIBRARY AND CUNIT_INCLUDE_DIR)
+
+MARK_AS_ADVANCED(
+    CUNIT_LIBRARY
+    CUNIT_INCLUDE_DIR
+)

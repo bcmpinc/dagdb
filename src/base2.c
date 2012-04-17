@@ -160,21 +160,23 @@ STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 /**
  * Opens the given file. Creates it if it does not yet exist.
  * @returns -1 on failure.
+ * TODO: give more information in case of error.
+ * TODO: convert failing assertions to load failure.
  */
 int dagdb_load(const char *database) {
 	// Open the database file
 	int fd = open(database, O_RDWR | O_CREAT, 0644);
 	if (fd == -1) goto error;
-	printf("Database file opened %d\n", fd);
+	//printf("Database file opened %d\n", fd);
 
 	// Map database into memory
 	file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (file == MAP_FAILED) goto error;
-	printf("Database data @ %p\n", file);
+	//printf("Database data @ %p\n", file);
 
 	// Obtain length of database file
 	size = lseek(fd, 0, SEEK_END);
-	printf("Database size: %d\n", size);
+	//printf("Database size: %d\n", size);
 	
 	// Check or generate header information.
 	Header* h = LOCATE(Header,0);
@@ -196,11 +198,11 @@ int dagdb_load(const char *database) {
 		// check headers.
 		assert(h->magic==DAGDB_MAGIC);
 		assert(h->format_version==FORMAT_VERSION);
-		printf("Database format %d accepted.\n", h->format_version);
+		//printf("Database format %d accepted.\n", h->format_version);
 		database_fd = fd;
 	}
 
-	printf("Opened DB\n");
+	//printf("Opened DB\n");
 	return 0;
 
 error:
@@ -220,12 +222,12 @@ void dagdb_unload() {
 		assert(file!=MAP_FAILED);
 		munmap(file, MAX_SIZE);
 		file = 0;
-		printf("Unmapped DB\n");
+		//printf("Unmapped DB\n");
 	}
 	if (database_fd) {
 		close(database_fd);
 		database_fd = 0;
-		printf("Closed DB\n");
+		//printf("Closed DB\n");
 	}
 }
 
