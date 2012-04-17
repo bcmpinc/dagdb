@@ -32,8 +32,22 @@ static void test_round_up() {
 	CU_ASSERT_EQUAL(dagdb_round_up(260), 260u);
 }
 
+static dagdb_key key0 = {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,0,0,0,0,0,0,0,0,0x37,0xe7,0x52,0x0f};
+static int nibbles[] = {
+	1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	7,3,7,14,2,5,15,0
+};
+
+static void test_nibble() {
+	int i;
+	for (i=0; i<DAGDB_KEY_LENGTH; i++)
+		CU_ASSERT_EQUAL(nibble(key0,i), nibbles[i]);
+}
+
 static CU_TestInfo test_non_io[] = {
   { "round_up", test_round_up },
+  { "nibble", test_nibble },
   CU_TEST_INFO_NULL,
 };
 
@@ -89,6 +103,8 @@ static void test_element() {
 	CU_ASSERT_EQUAL(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
 	CU_ASSERT_EQUAL(dagdb_element_data(el), 1000u);
 	CU_ASSERT_EQUAL(dagdb_element_backref(el), 1337u);
+	key k = obtain_key(el);
+	CU_ASSERT_NSTRING_EQUAL(k,key1,DAGDB_KEY_LENGTH);
 	dagdb_element_delete(el);
 }
 
@@ -101,6 +117,8 @@ static void test_kvpair() {
 	CU_ASSERT_EQUAL(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
 	CU_ASSERT_EQUAL(dagdb_kvpair_key(kv), el);
 	CU_ASSERT_EQUAL(dagdb_kvpair_value(kv), 42u);
+	key k = obtain_key(kv);
+	CU_ASSERT_NSTRING_EQUAL(k,key1,DAGDB_KEY_LENGTH);
 	dagdb_kvpair_delete(kv);
 	CU_ASSERT_EQUAL(dagdb_element_data(el), 1u);
 	CU_ASSERT_EQUAL(dagdb_element_backref(el), 2u);
