@@ -417,6 +417,7 @@ static key obtain_key(dagdb_pointer pointer) {
 
 /**
  * Retrieves the pointer associated with the given key.
+ * If no value is associated, then 0 is returned.
  */
 dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 {
@@ -447,7 +448,6 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 	}
 	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
 	abort();
-
 }
 
 /**
@@ -503,10 +503,43 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 	abort();
 }
 
-int dagdb_trie_remove(dagdb_pointer trie, dagdb_key key)
+/**
+ * Erases the value associated with the given key in this trie.
+ * If no value is associated, then this function will do nothing.
+ * Returns 1 if the key-value pair is erased from the trie, and 0 otherwise.
+ */
+int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 {
+	assert(trie>=HEADER_SIZE);
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
-
+	
+	// Traverse the trie.
+	int i;
+	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		Trie*  t = LOCATE(Trie, trie);
+		int n = nibble(k, i);
+		if (t->entry[n]==0) { 
+			// Spot is empty, so return null pointer
+			return 0;
+		}
+		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+			// Descend into the already existing sub-trie
+			trie = t->entry[n];
+		} else {
+			// Check if the element here has the same key.
+			key l = obtain_key(t->entry[n]);
+			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			if (same == 0) {
+				t->entry[n] = 0;
+				return 1;
+			}
+			
+			// The key's differ, so the requested key is not in this trie.
+			return 0;
+		}
+	}
+	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
+	abort();
 }
 
 dagdb_pointer dagdb_root()

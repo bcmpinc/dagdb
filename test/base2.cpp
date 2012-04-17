@@ -78,10 +78,10 @@ SUITE(base2) {
 	}
 	
 	// The keys are 1 byte too short, as the last byte is filled by the 0-termination character.
-	const uint8_t key1[DAGDB_KEY_LENGTH] = {"0123456789012345678"};
-	const uint8_t key2[DAGDB_KEY_LENGTH] = {"0123056789012345678"};
-	const uint8_t key3[DAGDB_KEY_LENGTH] = {"0123456789012345670"};
-	const uint8_t key4[DAGDB_KEY_LENGTH] = {"1123456789012345670"};
+	dagdb_key key1 = {"0123456789012345678"};
+	dagdb_key key2 = {"0123056789012345678"};
+	dagdb_key key3 = {"0123456789012345670"};
+	dagdb_key key4 = {"1123456789012345670"};
 	
 	TEST(insertion) {
 		int r;
@@ -104,12 +104,37 @@ SUITE(base2) {
 		dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
 		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el1));
 		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el2));
-		CHECK_EQUAL(1,dagdb_element_data(el1));
-		CHECK_EQUAL(2,dagdb_element_backref(el1));
-		CHECK_EQUAL(3,dagdb_element_data(el2));
-		CHECK_EQUAL(4,dagdb_element_backref(el2));
-		CHECK_EQUAL(0,dagdb_trie_find(dagdb_root(), key3)); // fail on empty spot
-		CHECK_EQUAL(0,dagdb_trie_find(dagdb_root(), key4)); // fail on key mismatch.
+		CHECK_EQUAL(1u,dagdb_element_data(el1));
+		CHECK_EQUAL(2u,dagdb_element_backref(el1));
+		CHECK_EQUAL(3u,dagdb_element_data(el2));
+		CHECK_EQUAL(4u,dagdb_element_backref(el2));
+		CHECK_EQUAL(0u,dagdb_trie_find(dagdb_root(), key3)); // fail on empty spot
+		CHECK_EQUAL(0u,dagdb_trie_find(dagdb_root(), key4)); // fail on key mismatch.
+	}
+	
+	TEST(remove) {
+		int r;
+		r = dagdb_trie_remove(dagdb_root(), key1);
+		CHECK_EQUAL(1,r);
+		r = dagdb_trie_remove(dagdb_root(), key1);
+		CHECK_EQUAL(0,r);
+		r = dagdb_trie_remove(dagdb_root(), key3);
+		CHECK_EQUAL(0,r);
+		r = dagdb_trie_remove(dagdb_root(), key4);
+		CHECK_EQUAL(0,r);
+		
+		dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1);
+		CHECK_EQUAL(0u, el1);
+		
+		dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
+		CHECK_EQUAL(DAGDB_TYPE_ELEMENT, dagdb_get_type(el2));
+		CHECK_EQUAL(3u,dagdb_element_data(el2));
+		CHECK_EQUAL(4u,dagdb_element_backref(el2));
+		
+		r = dagdb_trie_remove(dagdb_root(), key2);
+		CHECK_EQUAL(1,r);
+		el2 = dagdb_trie_find(dagdb_root(), key2);
+		CHECK_EQUAL(0u, el2);
 	}
 	
 	TEST(unload) {
