@@ -41,5 +41,5 @@ int main(int argc, char **argv) {
 	}
 	CU_basic_run_tests();
 	CU_cleanup_registry();
-	return 0;
+	return 0; // TODO change such that it is non-zero in case of a failing test.
 }

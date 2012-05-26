@@ -1,5 +1,6 @@
 #include <CUnit/CUnit.h>
 #include <string.h>
+#include <sys/stat.h>
 
 // include the entire file being tested.
 #include "../src/base.c"
@@ -71,10 +72,21 @@ static void test_superfluous_unload() {
 	dagdb_unload();
 }
 
+static void test_load_failure() {
+	unlink(DB_FILENAME);
+	int r = mkdir(DB_FILENAME,0700);
+	CU_ASSERT(r == 0);
+	r = dagdb_load(DB_FILENAME);
+	CU_ASSERT(r == -1);
+	dagdb_unload();
+	rmdir(DB_FILENAME);
+}
+
 static CU_TestInfo test_loading[] = {
   { "load_init", test_load_init },
   { "load_reload", test_load_reload },
   { "superfluous_unload", test_superfluous_unload },
+  { "load_failure", test_load_failure },
   CU_TEST_INFO_NULL,
 };
 
