@@ -80,10 +80,21 @@ static void *file;
  */
 static dagdb_size size;
 
-//////////////////
-// Declarations //
-//////////////////
+///////////
+// Types //
+///////////
 
+/**
+ * Stores some basic information about the database.
+ * The size of this header cannot exceed HEADER_SIZE.
+ * TODO: make tries much more space efficient.
+ */
+typedef struct {
+	int magic;
+	int format_version;
+	dagdb_pointer root;
+} Header;
+STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 ///////////////////
 // Pointer types //
@@ -144,18 +155,6 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 //////////////////////
 // Database loading //
 //////////////////////
-
-/**
- * Stores some basic information about the database.
- * The size of this header cannot exceed HEADER_SIZE.
- * TODO: make tries much more space efficient.
- */
-typedef struct {
-	int magic;
-	int format_version;
-	dagdb_pointer root;
-} Header;
-STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 /**
  * Opens the given file. Creates it if it does not yet exist.
