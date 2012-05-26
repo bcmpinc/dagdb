@@ -229,11 +229,22 @@ static void test_trie_kvpair() {
 	dagdb_element_delete(el);
 }
 
+static void test_trie_recursive_delete() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_trie_insert(t, dagdb_element_create(key1, 0, 2));
+	dagdb_trie_insert(t, dagdb_element_create(key1, 1, 2));
+	dagdb_trie_insert(t, dagdb_element_create(key2, 1, 2));
+	dagdb_trie_insert(t, dagdb_element_create(key3, 1, 2));
+	dagdb_trie_insert(t, dagdb_element_create(key4, 1, 2));
+	dagdb_trie_delete(t);
+}
+
 static CU_TestInfo test_trie_io[] = {
   { "insert", test_insert },
   { "find", test_find },
   { "remove", test_remove },
   { "kvpair", test_trie_kvpair },
+  { "recursive_delete", test_trie_recursive_delete },
   CU_TEST_INFO_NULL,
 };
 
