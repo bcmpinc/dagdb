@@ -1,6 +1,6 @@
 /*
     DagDB - A lightweight structured database system.
-    Copyright (C) 2011  B.J. Conijn <bcmpinc@users.sourceforge.net>
+    Copyright (C) 2012  B.J. Conijn <bcmpinc@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,119 +16,51 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DAGDB_BASE_H
-#define DAGDB_BASE_H
-#include <cstdint>
-#include <cstring>
+#ifndef DAGDB_BASE2_H
+#define DAGDB_BASE2_H
+#include <stdint.h>
 
-namespace dagdb { //
-namespace storage { //
+#define DAGDB_KEY_LENGTH 20
+typedef const uint8_t dagdb_key[DAGDB_KEY_LENGTH];
+typedef unsigned int dagdb_size;
+typedef unsigned int dagdb_pointer;
 
-	// Data structures
-	struct Hash;
-	struct Pointer;
-	struct Element;
-	struct Data;
-	struct Trie;
-	struct KVPair;
+typedef enum {
+	DAGDB_TYPE_DATA,
+	DAGDB_TYPE_ELEMENT,
+	DAGDB_TYPE_TRIE,
+	DAGDB_TYPE_KVPAIR,
+} dagdb_pointer_type;
 
-	struct StorageInfo {
-		StorageInfo(uint8_t type, const char * name);
-		uint8_t type;
-		const char * name;
-		int handle;
-	};
-	
-	template<class T>
-	struct Blob {
-		inline Blob() {memset(this, 0, sizeof(T));}
-		inline bool operator==(const T &b) const {return 0==memcmp(this, &b, sizeof(T));}
-		inline bool operator!=(const T &b) const {return 0!=memcmp(this, &b, sizeof(T));}
-		void read(Pointer p);
-		void write(Pointer p) const;
-	};
-	
-	template<class T>
-	struct Storage : Blob<T> {
-		static const StorageInfo info;
-		Pointer append() const;
-	};
+// Trie related
+dagdb_pointer dagdb_trie_create();
+void          dagdb_trie_delete(dagdb_pointer location);
+int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
+dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key key);
+int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key key);
 
-	struct Hash : Blob<Hash> {
-		uint8_t byte[20];
-		
-		Hash() = default;
-		Hash(const char * t);
-		Hash(const void * data, int length);
-		Hash(Pointer p);
-		
-		inline uint8_t operator[](int i) const {return byte[i];}
-		inline uint8_t& operator[](int i) {return byte[i];}
-		
-		int nibble(int index) const;
-		void write(char * t) const;
-	};
+// Element related
+dagdb_pointer dagdb_element_create (dagdb_key key, dagdb_pointer data, dagdb_pointer backref);
+void          dagdb_element_delete (dagdb_pointer location);
+dagdb_pointer dagdb_element_data   (dagdb_pointer location);
+dagdb_pointer dagdb_element_backref(dagdb_pointer location);
 
-	struct Pointer : Blob<Pointer> {
-		uint8_t type;
-		uint64_t address : 56;
-		
-		Pointer() = default;
-		Pointer(uint8_t type, uint64_t address); 
-		
-		// Interogation
-		Pointer find(Hash h) const;
-		uint64_t data_length();
-		const StorageInfo &info() const;
-		
-		// Manipulation
-		Pointer insert(Hash h) const;
-	};
+// Data related
+dagdb_pointer dagdb_data_create(dagdb_size length, const void * data);
+void          dagdb_data_delete(dagdb_pointer location);
+dagdb_size    dagdb_data_length(dagdb_pointer location);
+const void *  dagdb_data_read  (dagdb_pointer location);
 
-	struct Element : Storage<Element> {
-		Hash hash;
-		Pointer forward;
-		Pointer reverse;
-	};
+// KVpair related
+dagdb_pointer dagdb_kvpair_create(dagdb_pointer key,dagdb_pointer value);
+void          dagdb_kvpair_delete(dagdb_pointer location);
+dagdb_pointer dagdb_kvpair_key   (dagdb_pointer location);
+dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
 
-	struct Data {
-		static const StorageInfo info;
-		uint64_t length;
-		uint8_t * data;
-		Data() : length(0), data(0) {};
-		Data(Data&) = delete;
-		~Data() {if (data) delete[] data;};
-		inline uint8_t operator[](int i) const {return data[i];}
-		inline uint8_t& operator[](int i) {return data[i];}
-		void read(Pointer p); 
-	};
+// Other
+int           dagdb_load(const char * database);
+void          dagdb_unload();
+dagdb_pointer dagdb_root();
+dagdb_pointer_type dagdb_get_type(dagdb_pointer location);
 
-	struct Trie : Storage<Trie> {
-		Pointer pointers[16];
-		
-		inline Pointer operator[](int i) const {return pointers[i];}
-		inline Pointer& operator[](int i) {return pointers[i];}
-	};
-
-	struct KVPair : Storage<KVPair> {
-		Pointer key; // must point to an element.
-		Pointer value;
-	};
-	
-	// Global variables & constants
-	extern const Pointer root;
-
-	// Initialization
-	void set_log_function(int (*f) (const char *,...));
-	void init(const char * root_dir);
-	void truncate();
-	
-	bool insert_data(const void * data, uint64_t length);
-};
-};
-
-// Data interrogation
-
-
-#endif
-
+#endif 

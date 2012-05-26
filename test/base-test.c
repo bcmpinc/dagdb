@@ -2,7 +2,7 @@
 #include <string.h>
 
 // include the entire file being tested.
-#include "../src/base2.c"
+#include "../src/base.c"
 
 /** \file
  * Tests the I/O base system of DagDB.

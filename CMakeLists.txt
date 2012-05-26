@@ -7,12 +7,12 @@ find_package(Libgcrypt REQUIRED)
 find_package(CUnit)
 
 set(lib_src
-	src/base2.c
+	src/base.c
 )
 
 set(test_src 
 	test/main.c 
-	test/base2-test.c
+	test/base-test.c
 )
 
 add_library(dagdb SHARED ${lib_src})
