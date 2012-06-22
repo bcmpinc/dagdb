@@ -92,6 +92,26 @@ static CU_TestInfo test_loading[] = {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static void test_mem_initial() {
+	CU_ASSERT_EQUAL(size, HEADER_SIZE + sizeof(Trie));
+}
+
+static void test_mem_growing() {
+	int oldsize = size;
+	dagdb_pointer p = dagdb_malloc(1024);
+	CU_ASSERT_EQUAL(size, oldsize + 1024);
+	dagdb_free(p, 1024);
+	CU_ASSERT_EQUAL(size, oldsize);
+}
+
+static CU_TestInfo test_mem[] = {
+  { "memory_initial", test_mem_initial },
+  { "memory_growing", test_mem_growing },
+  CU_TEST_INFO_NULL,
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
 // The keys are 1 byte too short, as the last byte is filled by the 0-termination character.
 static dagdb_key key1 = {"0123456789012345678"};
 static dagdb_key key2 = {"0123056789012345678"};
@@ -263,6 +283,7 @@ static int close_db() {
 CU_SuiteInfo base2_suites[] = {
 	{ "base-non-io",   NULL,        NULL,     test_non_io },
 	{ "base-loading",  NULL,        NULL,     test_loading },
+	{ "base-memory",   open_new_db, close_db, test_mem },
 	{ "base-basic-io", open_new_db, close_db, test_basic_io },
 	{ "base-trie-io",  open_new_db, close_db, test_trie_io },
 	CU_SUITE_INFO_NULL,

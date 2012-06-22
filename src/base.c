@@ -113,9 +113,22 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 //////////////////////
 
 /**
- * Rounds up the given argument to a multiple of S.
+ * The size of a single memory page. This value can differ between systems, but is usually 4096.
+ */
+#define PAGE_SIZE 4096
+
+typedef struct {
+	dagdb_size size;
+	dagdb_pointer next;
+	
+} FreeMemoryChunk;
+
+/**
+ * Rounds up the given argument to a the smallest allocatable size.
+ * This is either the smallest allocatable size or a multiple of S.
  */
 dagdb_size dagdb_round_up(dagdb_size v) {
+	if (v<sizeof(dagdb_pointer)*2) return sizeof(dagdb_pointer)*2;
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 
@@ -158,7 +171,7 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 
 /**
  * Opens the given file. Creates it if it does not yet exist.
- * @returns -1 on failure.
+ * @returns 0 if succesfull.
  * TODO: give more information in case of error.
  * TODO: convert failing assertions to load failure.
  */
