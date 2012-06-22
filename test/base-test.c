@@ -21,16 +21,16 @@
 
 static void test_round_up() {
 	CU_ASSERT_EQUAL(dagdb_round_up(0), 0u);
-	CU_ASSERT_EQUAL(dagdb_round_up(1), 4u);
-	CU_ASSERT_EQUAL(dagdb_round_up(2), 4u);
-	CU_ASSERT_EQUAL(dagdb_round_up(3), 4u);
-	CU_ASSERT_EQUAL(dagdb_round_up(4), 4u);
+	CU_ASSERT_EQUAL(dagdb_round_up(1), S);
+	CU_ASSERT_EQUAL(dagdb_round_up(2), S);
+	CU_ASSERT_EQUAL(dagdb_round_up(3), S);
+	CU_ASSERT_EQUAL(dagdb_round_up(4), S);
 	CU_ASSERT_EQUAL(dagdb_round_up(255), 256u);
 	CU_ASSERT_EQUAL(dagdb_round_up(256), 256u);
-	CU_ASSERT_EQUAL(dagdb_round_up(257), 260u);
-	CU_ASSERT_EQUAL(dagdb_round_up(258), 260u);
-	CU_ASSERT_EQUAL(dagdb_round_up(259), 260u);
-	CU_ASSERT_EQUAL(dagdb_round_up(260), 260u);
+	CU_ASSERT_EQUAL(dagdb_round_up(257), 256u+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(258), 256u+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(259), 256u+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(260), 256u+S);
 }
 
 static dagdb_key key0 = {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,0,0,0,0,0,0,0,0,0x37,0xe7,0x52,0x0f};

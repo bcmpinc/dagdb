@@ -128,7 +128,7 @@ typedef struct {
  * This is either the smallest allocatable size or a multiple of S.
  */
 dagdb_size dagdb_round_up(dagdb_size v) {
-	if (v<sizeof(dagdb_pointer)*2) return sizeof(dagdb_pointer)*2;
+	//if (v<sizeof(dagdb_pointer)*2) return sizeof(dagdb_pointer)*2;
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 

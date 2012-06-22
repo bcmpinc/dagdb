@@ -22,8 +22,8 @@
 
 #define DAGDB_KEY_LENGTH 20
 typedef const uint8_t dagdb_key[DAGDB_KEY_LENGTH];
-typedef unsigned int dagdb_size;
-typedef unsigned int dagdb_pointer;
+typedef uint64_t dagdb_size;
+typedef uint64_t dagdb_pointer;
 
 typedef enum {
 	DAGDB_TYPE_DATA,
