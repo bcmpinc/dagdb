@@ -16,8 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DAGDB_BASE2_H
-#define DAGDB_BASE2_H
+#ifndef DAGDB_BASE_H
+#define DAGDB_BASE_H
 #include <stdint.h>
 
 #define DAGDB_KEY_LENGTH 20
