@@ -77,7 +77,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * A 4 byte string that helps identifying a DagDB database.
  * It can also be used to identify the used byte order.
  */
-#define DAGDB_MAGIC (*(int*)"D-db")
+#define DAGDB_MAGIC (*(uint32_t*)"D-db")
 
 //////////////////////
 // Static variables //
@@ -86,7 +86,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * The file descriptor of the currently opened database.
  */
-static int database_fd;
+static uint_fast32_t database_fd;
 
 /**
  * Pointer to the data of the file in memory.
@@ -107,8 +107,8 @@ static dagdb_size size;
  * The size of this header cannot exceed HEADER_SIZE.
  */
 typedef struct {
-	int magic;
-	int format_version;
+	int32_t magic;
+	int32_t format_version;
 	dagdb_pointer root;
 } Header;
 STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
@@ -132,30 +132,53 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 // Space allocation //
 //////////////////////
 
-/**
- * The size of a single memory page. This value can differ between systems, but is usually 4096.
- */
+/** The size of a single memory page. This value can differ between systems, but is usually 4096. */
 #define PAGE_SIZE 4096
 
-typedef struct {
-	dagdb_size size;
-	dagdb_pointer next;
-	
-} FreeMemoryChunk;
+/** Size of a single memory slab/chunk. */
+#define CHUNK_SIZE (8 * PAGE_SIZE)
+
+/** Number of ints that fit in the slab (in ints), while perserving room for the use bitmap. */
+#define BITMAP_SIZE ((CHUNK_SIZE+S*S) / (S*S+1))
 
 /**
- * Rounds up the given argument to a the smallest allocatable size.
+ * This is embedded in all free memory chunks,
+ * except those that are too small.
+ * These create linked lists of chunks that are approximately the same size.
+ */
+typedef struct {
+	dagdb_pointer prev; 
+	dagdb_pointer next;
+} FreeMemoryChunk;
+STATIC_ASSERT(sizeof(FreeMemoryChunk)/S*S == sizeof(FreeMemoryChunk), fmc_size_is_multiple_of_s);
+
+/**
+ * Computes the log2 of an 32-bit integer.
+ * Based on: http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog.
+ */
+static inline uint_fast32_t lg2(register uint_fast32_t v) {
+	register uint_fast32_t r; // result of log2(v) will go here
+	register uint_fast32_t shift;
+	r =     (v > 0xFFFF) << 4; v >>= r;
+	shift = (v > 0xFF  ) << 3; v >>= shift; r |= shift;
+	shift = (v > 0xF   ) << 2; v >>= shift; r |= shift;
+	shift = (v > 0x3   ) << 1; v >>= shift; r |= shift;
+	r |= (v >> 1);
+	return r;
+}
+
+/**
+ * Rounds up the given argument to an allocatable size.
  * This is either the smallest allocatable size or a multiple of S.
  */
 dagdb_size dagdb_round_up(dagdb_size v) {
-	//if (v<sizeof(dagdb_pointer)*2) return sizeof(dagdb_pointer)*2;
+	if (v<sizeof(FreeMemoryChunk)) return sizeof(FreeMemoryChunk);
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 
 /**
  * Allocates the requested amount of bytes.
  * Currently always enlarges the file by 'length'.
- * TODO (high): implement realloc
  */
 static dagdb_size dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = size;
@@ -171,7 +194,17 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
 }
 
 /**
- * Frees the requested memory.
+ * Enlarges or shrinks the provided memory such that its size is the given amount of bytes.
+ * If the current data must be moved to a different location, this function will perform that move.
+ * Note that the new allocated memory might be at a different location (even if shrinking).
+ * TODO (high): unimplemented / implement realloc
+ */
+static dagdb_size dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_size newlength) {
+	return 0;
+}
+
+/**
+ * Frees the provided memory.
  * Currently only zero's out the memory range.
  * This function also strips off the type information before freeing.
  * TODO (high): add to memory pool & truncate file if possible.
@@ -198,7 +231,7 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
  */
 int dagdb_load(const char *database) {
 	// Open the database file
-	int fd = open(database, O_RDWR | O_CREAT, 0644);
+	int_fast32_t fd = open(database, O_RDWR | O_CREAT, 0644);
 	if (fd == -1) goto error;
 	//printf("Database file opened %d\n", fd);
 
@@ -423,7 +456,7 @@ dagdb_pointer dagdb_trie_create()
 void dagdb_trie_delete(dagdb_pointer location)
 {
 	assert(dagdb_get_type(location) == DAGDB_TYPE_TRIE);
-	int i;
+	uint_fast32_t i;
 	Trie*  t = LOCATE(Trie, location);
 	for (i=0; i<16; i++) {
 		if (dagdb_get_type(t->entry[i]) == DAGDB_TYPE_TRIE)
@@ -432,7 +465,7 @@ void dagdb_trie_delete(dagdb_pointer location)
 	dagdb_free(location, sizeof(Trie));
 }
 
-static int nibble(const uint8_t * key, int index) {
+static uint_fast32_t nibble(const uint8_t * key, uint_fast32_t index) {
 	assert(index >= 0);
 	assert(index < 2*DAGDB_KEY_LENGTH);
 	if (index&1)
@@ -467,10 +500,10 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
-	int i;
+	int_fast32_t i;
 	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
 		Trie*  t = LOCATE(Trie, trie);
-		int n = nibble(k, i);
+		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so return null pointer
 			return 0;
@@ -481,7 +514,7 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 		} else {
 			// Check if the element here has the same key.
 			key l = obtain_key(t->entry[n]);
-			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			int_fast32_t same = memcmp(k,l,DAGDB_KEY_LENGTH);
 			if (same == 0) return t->entry[n];
 			
 			// The key's differ, so the requested key is not in this trie.
@@ -506,10 +539,10 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 	key k = obtain_key(pointer);
 	
 	// Traverse the trie.
-	int i;
+	int_fast32_t i;
 	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
 		Trie*  t = LOCATE(Trie, trie);
-		int n = nibble(k, i);
+		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so we can insert it here.
 			t->entry[n] = pointer;
@@ -521,11 +554,11 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 		} else {
 			// Check if the element here has the same key.
 			key l = obtain_key(t->entry[n]);
-			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			int_fast32_t same = memcmp(k,l,DAGDB_KEY_LENGTH);
 			if (same == 0) return 0;
 			
 			// Create new tries until we have a differing nibble
-			int m = nibble(l,i);
+			int_fast32_t m = nibble(l,i);
 			while (n == m) {
 				dagdb_pointer newtrie = dagdb_trie_create();
 				Trie*  t2 = LOCATE(Trie, newtrie);
@@ -556,10 +589,10 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
-	int i;
+	int_fast32_t i;
 	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
 		Trie*  t = LOCATE(Trie, trie);
-		int n = nibble(k, i);
+		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so return null pointer
 			return 0;
@@ -570,7 +603,7 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 		} else {
 			// Check if the element here has the same key.
 			key l = obtain_key(t->entry[n]);
-			int same = memcmp(k,l,DAGDB_KEY_LENGTH);
+			int_fast32_t same = memcmp(k,l,DAGDB_KEY_LENGTH);
 			if (same == 0) {
 				t->entry[n] = 0;
 				return 1;

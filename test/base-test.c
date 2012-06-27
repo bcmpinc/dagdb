@@ -38,11 +38,17 @@
 
 
 static void test_round_up() {
-	CU_ASSERT_EQUAL(dagdb_round_up(0), 0u);
-	CU_ASSERT_EQUAL(dagdb_round_up(1), S);
-	CU_ASSERT_EQUAL(dagdb_round_up(2), S);
-	CU_ASSERT_EQUAL(dagdb_round_up(3), S);
-	CU_ASSERT_EQUAL(dagdb_round_up(4), S);
+	const dagdb_size L = sizeof(FreeMemoryChunk);
+	CU_ASSERT_EQUAL(dagdb_round_up(0), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(1), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(2), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(3), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(4), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(L+0), L);
+	CU_ASSERT_EQUAL(dagdb_round_up(L+1), L+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(L+2), L+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(L+3), L+S);
+	CU_ASSERT_EQUAL(dagdb_round_up(L+4), L+S);
 	CU_ASSERT_EQUAL(dagdb_round_up(255), 256u);
 	CU_ASSERT_EQUAL(dagdb_round_up(256), 256u);
 	CU_ASSERT_EQUAL(dagdb_round_up(257), 256u+S);
@@ -138,7 +144,7 @@ static dagdb_key key4 = {"1123456789012345670"};
 
 static void test_data() {
 	const char *data = "This is a test";
-	uint len = strlen(data);
+	uint_fast32_t len = strlen(data);
 	dagdb_pointer p = dagdb_data_create(len, data);
 	CU_ASSERT_EQUAL(dagdb_get_type(p), DAGDB_TYPE_DATA);
 	CU_ASSERT_EQUAL(dagdb_data_length(p), len);
