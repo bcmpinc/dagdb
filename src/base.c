@@ -30,22 +30,6 @@
 // Macro's //
 /////////////
 
-/**
- * Maximum amount of space (in bytes) that the database is allowed to use.
- * TODO: Remove this limit.
- */
-#define MAX_SIZE (1<<30)
-
-/**
- * Masks the part of a pointer that contains type information.
- */
-#define DAGDB_TYPE_MASK (S-1)
-
-/**
- * Returns a pointer of type 'type', pointing to the given location in the database file.
- * Also handles stripping off the pointer's type information.
- */
-#define LOCATE(type,location) (type*)(file+(location&~DAGDB_TYPE_MASK))
 
 /**
  * Used to perform sanity checks during compilation.
@@ -60,6 +44,23 @@
 #define S (sizeof(dagdb_size))
 STATIC_ASSERT(S == sizeof(dagdb_size), same_pointer_size_size);
 STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
+
+/**
+ * Maximum amount of space (in bytes) that the database is allowed to use.
+ * TODO (low): Remove this limit.
+ */
+#define MAX_SIZE (1<<30)
+
+/**
+ * Masks the part of a pointer that contains type information.
+ */
+#define DAGDB_TYPE_MASK (S-1)
+
+/**
+ * Returns a pointer of type 'type', pointing to the given location in the database file.
+ * Also handles stripping off the pointer's type information.
+ */
+#define LOCATE(type,location) (type*)(file+(location&~DAGDB_TYPE_MASK))
 
 /**
  * The amount of space (in bytes) reserved for the database header. 
@@ -104,7 +105,6 @@ static dagdb_size size;
 /**
  * Stores some basic information about the database.
  * The size of this header cannot exceed HEADER_SIZE.
- * TODO: make tries much more space efficient.
  */
 typedef struct {
 	int magic;
@@ -121,6 +121,9 @@ STATIC_ASSERT(DAGDB_TYPE_DATA    < S,pointer_size_too_small_to_contain_type_data
 STATIC_ASSERT(DAGDB_TYPE_ELEMENT < S,pointer_size_too_small_to_contain_type_element);
 STATIC_ASSERT(DAGDB_TYPE_TRIE    < S,pointer_size_too_small_to_contain_type_trie);
 STATIC_ASSERT(DAGDB_TYPE_KVPAIR  < S,pointer_size_too_small_to_contain_type_kvpair);
+/**
+ * Obtains the type inormation of the given pointer.
+ */
 inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 	return location&DAGDB_TYPE_MASK;
 }
@@ -152,6 +155,7 @@ dagdb_size dagdb_round_up(dagdb_size v) {
 /**
  * Allocates the requested amount of bytes.
  * Currently always enlarges the file by 'length'.
+ * TODO (high): implement realloc
  */
 static dagdb_size dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = size;
@@ -170,6 +174,7 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
  * Frees the requested memory.
  * Currently only zero's out the memory range.
  * This function also strips off the type information before freeing.
+ * TODO (high): add to memory pool & truncate file if possible.
  */
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Strip type information
@@ -179,7 +184,6 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	assert(location+length<=size);
 	// Clear memory
 	memset(file + location, 0, dagdb_round_up(length));
-	// TODO: add to memory pool & truncate file if possible.
 }
 
 //////////////////////
@@ -189,8 +193,8 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 /**
  * Opens the given file. Creates it if it does not yet exist.
  * @returns 0 if succesfull.
- * TODO: give more information in case of error.
- * TODO: convert failing assertions to load failure.
+ * TODO (high): give more information in case of error.
+ * TODO (high): convert failing assertions to load failure.
  */
 int dagdb_load(const char *database) {
 	// Open the database file
@@ -309,13 +313,16 @@ const void *dagdb_data_read(dagdb_pointer location) {
 /**
  * Element
  * DAGDB_KEY_LENGTH bytes: key
+ * 4 bytes: padding. (can be used to store information about this element.
  * S bytes: forward pointer (data or trie)
  * S bytes: pointer to backref. (trie)
+ * TODO (low): for small data elements, embed data in this element.
  */
 typedef struct {
 	unsigned char key[DAGDB_KEY_LENGTH];
-	dagdb_pointer data;
+	uint32_t dummy;
 	dagdb_pointer backref;
+	dagdb_pointer data;
 } Element;
 
 dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_pointer backref) {
@@ -352,6 +359,7 @@ dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
  * KV Pair
  * S bytes: Key (element)
  * S bytes: Value (element or trie)
+ * TODO (med): Remove this (and embed them in the tries)
  */
 typedef struct  {
 	dagdb_pointer key;
@@ -396,6 +404,9 @@ typedef uint8_t * key;
 /** 
  * The trie
  * 16 * S bytes: Pointers (trie or element)
+ * TODO (med): make tries much more space efficient.
+ * TODO (med): embed kv-pairs into tries.
+ * TODO (low): make tries implicit (with a single pointer to its location) to allow realloc operations.
  */
 typedef struct {
 	dagdb_pointer entry[16];
