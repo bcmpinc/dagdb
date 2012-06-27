@@ -36,6 +36,10 @@
  * affected by bugs that can trigger later tests.
  */
 
+static void print_info() {
+	MemorySlab a;
+	printf("memory slab: %d entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), CHUNK_SIZE - sizeof(MemorySlab));
+}
 
 static void test_round_up() {
 	const dagdb_size L = sizeof(FreeMemoryChunk);
@@ -71,6 +75,7 @@ static void test_nibble() {
 }
 
 static CU_TestInfo test_non_io[] = {
+  { "print_info", print_info }, 
   { "round_up", test_round_up },
   { "nibble", test_nibble },
   CU_TEST_INFO_NULL,

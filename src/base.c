@@ -65,7 +65,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * The amount of space (in bytes) reserved for the database header. 
  */
-#define HEADER_SIZE 128
+#define HEADER_SIZE 512
 
 /**
  * Counter for the database format. Incremented whenever a format change
@@ -78,6 +78,34 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * It can also be used to identify the used byte order.
  */
 #define DAGDB_MAGIC (*(uint32_t*)"D-db")
+
+
+///////////
+// Types //
+///////////
+
+/**
+ * This is embedded in all free memory chunks,
+ * except those that are too small.
+ * These create linked lists of chunks that are approximately the same size.
+ */
+typedef struct {
+	dagdb_pointer prev; 
+	dagdb_pointer next;
+} FreeMemoryChunk;
+STATIC_ASSERT(sizeof(FreeMemoryChunk)/S*S == sizeof(FreeMemoryChunk), fmc_size_is_multiple_of_s);
+
+/**
+ * Stores some basic information about the database.
+ * The size of this header cannot exceed HEADER_SIZE.
+ */
+typedef struct {
+	int32_t magic;
+	int32_t format_version;
+	dagdb_pointer root;
+	FreeMemoryChunk chunks[31];
+} Header;
+STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 
 //////////////////////
@@ -100,22 +128,6 @@ static struct {
 	 */
 	dagdb_size size;
 } global;
-
-
-///////////
-// Types //
-///////////
-
-/**
- * Stores some basic information about the database.
- * The size of this header cannot exceed HEADER_SIZE.
- */
-typedef struct {
-	int32_t magic;
-	int32_t format_version;
-	dagdb_pointer root;
-} Header;
-STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
 
 ///////////////////
@@ -143,19 +155,20 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 /** Size of a single memory slab/chunk. */
 #define CHUNK_SIZE (8 * PAGE_SIZE)
 
-/** Number of ints that fit in the slab (in ints), while perserving room for the use bitmap. */
-#define BITMAP_SIZE ((CHUNK_SIZE+S*S) / (S*S+1))
+/** 
+ * Number of ints that fit in the slab (in ints), while perserving room for the usage bitmap. 
+ */
+#define BITMAP_SIZE ((CHUNK_SIZE*8) / (S*8+1))
 
 /**
- * This is embedded in all free memory chunks,
- * except those that are too small.
- * These create linked lists of chunks that are approximately the same size.
+ * A struct for the internal structure of a slab.
  */
 typedef struct {
-	dagdb_pointer prev; 
-	dagdb_pointer next;
-} FreeMemoryChunk;
-STATIC_ASSERT(sizeof(FreeMemoryChunk)/S*S == sizeof(FreeMemoryChunk), fmc_size_is_multiple_of_s);
+	dagdb_pointer data[BITMAP_SIZE];
+	uint_fast32_t bitmap[(BITMAP_SIZE+sizeof(uint_fast32_t)*8-1)/sizeof(uint_fast32_t)/8];
+} MemorySlab;
+STATIC_ASSERT(sizeof(MemorySlab) <= CHUNK_SIZE, memory_slab_fits_in_chunk);
+STATIC_ASSERT(sizeof(MemorySlab) > CHUNK_SIZE - 2*S, memory_slab_does_not_waste_too_much);
 
 /**
  * Computes the log2 of an 32-bit integer.
