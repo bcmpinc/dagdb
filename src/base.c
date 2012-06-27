@@ -263,9 +263,12 @@ int dagdb_load(const char *database) {
 	global.size = lseek(fd, 0, SEEK_END);
 	//printf("Database size: %d\n", size);
 	
+	// database size must be a multiple of CHUNK_SIZE
+	assert((global.size%CHUNK_SIZE)==0); 
+	
 	// Check or generate header information.
 	Header* h = LOCATE(Header,0);
-	if (global.size < HEADER_SIZE) {
+	if (global.size == 0) {
 		global.database_fd = fd;
 		// Database must be empty.
 		assert(global.size==0);
@@ -278,8 +281,6 @@ int dagdb_load(const char *database) {
 		global.size = HEADER_SIZE;
 		h->root=dagdb_trie_create();
 	} else {
-		// database size must be a multiple of S
-		assert((global.size&DAGDB_TYPE_MASK)==0); 
 		// check headers.
 		assert(h->magic==DAGDB_MAGIC);
 		assert(h->format_version==FORMAT_VERSION);
