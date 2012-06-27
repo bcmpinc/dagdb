@@ -129,6 +129,7 @@ static struct {
 	dagdb_size size;
 } global;
 
+const char dagdb_error[80];
 
 ///////////////////
 // Pointer types //

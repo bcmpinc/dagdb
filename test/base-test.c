@@ -38,7 +38,7 @@
 
 static void print_info() {
 	MemorySlab a;
-	printf("memory slab: %d entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), CHUNK_SIZE - sizeof(MemorySlab));
+	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), CHUNK_SIZE - sizeof(MemorySlab));
 }
 
 static void test_round_up() {

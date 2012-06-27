@@ -32,6 +32,15 @@ typedef enum {
 	DAGDB_TYPE_KVPAIR,
 } dagdb_pointer_type;
 
+typedef enum {
+	DAGDB_ERROR_NONE=0,
+	DAGDB_ERROR_OTHER,
+	DAGDB_ERROR_TOO_LARGE,
+	DAGDB_ERROR_MAGIC,
+} dagdb_error_code;
+
+extern const char dagdb_error[];
+
 // Trie related
 dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
