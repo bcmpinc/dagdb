@@ -26,10 +26,10 @@
 
 #include "base.h"
 
+
 /////////////
 // Macro's //
 /////////////
-
 
 /**
  * Used to perform sanity checks during compilation.
@@ -60,7 +60,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * Returns a pointer of type 'type', pointing to the given location in the database file.
  * Also handles stripping off the pointer's type information.
  */
-#define LOCATE(type,location) (type*)(file+(location&~DAGDB_TYPE_MASK))
+#define LOCATE(type,location) (type*)(global.file+(location&~DAGDB_TYPE_MASK))
 
 /**
  * The amount of space (in bytes) reserved for the database header. 
@@ -79,24 +79,28 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  */
 #define DAGDB_MAGIC (*(uint32_t*)"D-db")
 
+
 //////////////////////
 // Static variables //
 //////////////////////
 
-/**
- * The file descriptor of the currently opened database.
- */
-static uint_fast32_t database_fd;
+static struct {
+	/**
+	 * The file descriptor of the currently opened database.
+	 */
+	uint_fast32_t database_fd;
 
-/**
- * Pointer to the data of the file in memory.
- */
-static void *file;
+	/**
+	 * Pointer to the data of the file in memory.
+	 */
+	void *file;
 
-/**
- * The current size of the currently opened database.
- */
-static dagdb_size size;
+	/**
+	 * The current size of the currently opened database.
+	 */
+	dagdb_size size;
+} global;
+
 
 ///////////
 // Types //
@@ -112,6 +116,7 @@ typedef struct {
 	dagdb_pointer root;
 } Header;
 STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
+
 
 ///////////////////
 // Pointer types //
@@ -181,11 +186,11 @@ dagdb_size dagdb_round_up(dagdb_size v) {
  * Currently always enlarges the file by 'length'.
  */
 static dagdb_size dagdb_malloc(dagdb_size length) {
-	dagdb_pointer r = size;
+	dagdb_pointer r = global.size;
 	dagdb_size alength = dagdb_round_up(length);
-	size += alength;
-	assert(size <= MAX_SIZE);
-	if (ftruncate(database_fd, size)) {
+	global.size += alength;
+	assert(global.size <= MAX_SIZE);
+	if (ftruncate(global.database_fd, global.size)) {
 		perror("dagdb_malloc");
 		abort();
 	}
@@ -214,10 +219,11 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	location &= ~DAGDB_TYPE_MASK;
 	// Do sanity checks
 	assert(location>=HEADER_SIZE);
-	assert(location+length<=size);
+	assert(location+length<=global.size);
 	// Clear memory
-	memset(file + location, 0, dagdb_round_up(length));
+	memset(global.file + location, 0, dagdb_round_up(length));
 }
+
 
 //////////////////////
 // Database loading //
@@ -236,36 +242,36 @@ int dagdb_load(const char *database) {
 	//printf("Database file opened %d\n", fd);
 
 	// Map database into memory
-	file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (file == MAP_FAILED) goto error;
+	global.file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (global.file == MAP_FAILED) goto error;
 	//printf("Database data @ %p\n", file);
 
 	// Obtain length of database file
-	size = lseek(fd, 0, SEEK_END);
+	global.size = lseek(fd, 0, SEEK_END);
 	//printf("Database size: %d\n", size);
 	
 	// Check or generate header information.
 	Header* h = LOCATE(Header,0);
-	if (size < HEADER_SIZE) {
-		database_fd = fd;
+	if (global.size < HEADER_SIZE) {
+		global.database_fd = fd;
 		// Database must be empty.
-		assert(size==0);
+		assert(global.size==0);
 		if (ftruncate(fd, HEADER_SIZE)) {
 			perror("dagdb_load init");
 			abort();
 		}
 		h->magic=DAGDB_MAGIC;
 		h->format_version=FORMAT_VERSION;
-		size = HEADER_SIZE;
+		global.size = HEADER_SIZE;
 		h->root=dagdb_trie_create();
 	} else {
 		// database size must be a multiple of S
-		assert((size&DAGDB_TYPE_MASK)==0); 
+		assert((global.size&DAGDB_TYPE_MASK)==0); 
 		// check headers.
 		assert(h->magic==DAGDB_MAGIC);
 		assert(h->format_version==FORMAT_VERSION);
 		//printf("Database format %d accepted.\n", h->format_version);
-		database_fd = fd;
+		global.database_fd = fd;
 	}
 
 	//printf("Opened DB\n");
@@ -274,7 +280,7 @@ int dagdb_load(const char *database) {
 error:
 	fflush(stdout);
 	perror("dagdb_load");
-	if (file != MAP_FAILED) file = 0;
+	if (global.file != MAP_FAILED) global.file = 0;
 	if (fd != -1) close(fd);
 	return -1;
 }
@@ -284,18 +290,19 @@ error:
  * Does nothing if no database file is currently open.
  */
 void dagdb_unload() {
-	if (file) {
-		assert(file!=MAP_FAILED);
-		munmap(file, MAX_SIZE);
-		file = 0;
+	if (global.file) {
+		assert(global.file!=MAP_FAILED);
+		munmap(global.file, MAX_SIZE);
+		global.file = 0;
 		//printf("Unmapped DB\n");
 	}
-	if (database_fd) {
-		close(database_fd);
-		database_fd = 0;
+	if (global.database_fd) {
+		close(global.database_fd);
+		global.database_fd = 0;
 		//printf("Closed DB\n");
 	}
 }
+
 
 ////////////////
 // Data items //
@@ -384,6 +391,7 @@ dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
 	return e->backref;
 }
 
+
 //////////////
 // KV Pairs //
 //////////////
@@ -424,6 +432,7 @@ dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
 	KVPair*  p = LOCATE(KVPair, location);
 	return p->value;
 }
+
 
 ///////////
 // Tries //

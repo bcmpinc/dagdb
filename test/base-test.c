@@ -117,15 +117,15 @@ static CU_TestInfo test_loading[] = {
 ///////////////////////////////////////////////////////////////////////////////
 
 static void test_mem_initial() {
-	CU_ASSERT_EQUAL(size, HEADER_SIZE + sizeof(Trie));
+	CU_ASSERT_EQUAL(global.size, HEADER_SIZE + sizeof(Trie));
 }
 
 static void test_mem_growing() {
-	int oldsize = size;
+	int oldsize = global.size;
 	dagdb_pointer p = dagdb_malloc(1024);
-	CU_ASSERT_EQUAL(size, oldsize + 1024);
+	CU_ASSERT_EQUAL(global.size, oldsize + 1024);
 	dagdb_free(p, 1024);
-	CU_ASSERT_EQUAL(size, oldsize);
+	CU_ASSERT_EQUAL(global.size, oldsize);
 }
 
 static CU_TestInfo test_mem[] = {
