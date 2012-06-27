@@ -36,9 +36,19 @@
  * affected by bugs that can trigger later tests.
  */
 
+#define PRINT_ERROR_IF_ANY if(dagdb_errno>0){fprintf(stderr,"%d: %s\n", dagdb_errno, dagdb_last_error()); dagdb_errno=0;}
+#define CLEAR_ERROR dagdb_errno=0;
+
+///////////////////////////////////////////////////////////////////////////////
+
 static void print_info() {
 	MemorySlab a;
 	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), CHUNK_SIZE - sizeof(MemorySlab));
+}
+
+static void test_no_error() {
+	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_NONE);
+	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
 }
 
 static void test_round_up() {
@@ -76,6 +86,7 @@ static void test_nibble() {
 
 static CU_TestInfo test_non_io[] = {
   { "print_info", print_info }, 
+  { "no_errors", test_no_error },
   { "round_up", test_round_up },
   { "nibble", test_nibble },
   CU_TEST_INFO_NULL,
@@ -86,14 +97,14 @@ static CU_TestInfo test_non_io[] = {
 
 static void test_load_init() {
 	unlink(DB_FILENAME);
-	int r = dagdb_load(DB_FILENAME);
-	CU_ASSERT(r == 0);
+	int r = dagdb_load(DB_FILENAME); PRINT_ERROR_IF_ANY
+	CU_ASSERT(r == 0); 
 	dagdb_unload();
 }
 
 static void test_load_reload() {
-	int r = dagdb_load(DB_FILENAME);
-	CU_ASSERT(r == 0);
+	int r = dagdb_load(DB_FILENAME); PRINT_ERROR_IF_ANY
+	CU_ASSERT(r == 0); 
 	dagdb_unload();
 }
 
@@ -104,10 +115,11 @@ static void test_superfluous_unload() {
 static void test_load_failure() {
 	unlink(DB_FILENAME);
 	int r = mkdir(DB_FILENAME,0700);
-	CU_ASSERT(r == 0);
-	r = dagdb_load(DB_FILENAME);
-	CU_ASSERT(r == -1);
-	dagdb_unload();
+	CU_ASSERT(r == 0); 
+	r = dagdb_load(DB_FILENAME);  
+	CU_ASSERT(r == -1); 
+	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_INVALID_DB); CLEAR_ERROR
+	dagdb_unload(); // <- again superfluous
 	rmdir(DB_FILENAME);
 }
 
@@ -122,19 +134,29 @@ static CU_TestInfo test_loading[] = {
 ///////////////////////////////////////////////////////////////////////////////
 
 static void test_mem_initial() {
-	CU_ASSERT_EQUAL(global.size, HEADER_SIZE + sizeof(Trie));
+	CU_ASSERT_EQUAL(global.size, CHUNK_SIZE);
+	// TODO: add test that checks memory usage & bitmap of first chunk.
+}
+
+static void test_mem_grow_much() {
+	dagdb_pointer p = dagdb_malloc(MAX_SIZE); 
+	CU_ASSERT_EQUAL(p, 0);
+	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_DB_TOO_LARGE); CLEAR_ERROR
 }
 
 static void test_mem_growing() {
 	int oldsize = global.size;
-	dagdb_pointer p = dagdb_malloc(1024);
+	dagdb_pointer p = dagdb_malloc(1024); PRINT_ERROR_IF_ANY
+	// TODO: update this test when chunked memory management is implemented
+	CU_ASSERT_FATAL(p>0);
 	CU_ASSERT_EQUAL(global.size, oldsize + 1024);
-	dagdb_free(p, 1024);
+	dagdb_free(p, 1024); 
 	CU_ASSERT_EQUAL(global.size, oldsize);
 }
 
 static CU_TestInfo test_mem[] = {
   { "memory_initial", test_mem_initial },
+  { "memory_error_grow", test_mem_grow_much },
   { "memory_growing", test_mem_growing },
   CU_TEST_INFO_NULL,
 };

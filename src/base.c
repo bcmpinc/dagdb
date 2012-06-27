@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "base.h"
 
@@ -35,6 +36,19 @@
  * Used to perform sanity checks during compilation.
  */
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+
+/**
+ * Set a new error message.
+ */
+#define dagdb_report(fmt, ...) snprintf(global.errormsg, sizeof(global.errormsg), "%s:" fmt ".", __func__, ##__VA_ARGS__);
+
+/**
+ * Set a new error message using the description provided by the standard library.
+ */
+#define dagdb_report_p(fmt, ...) do { \
+	int_fast32_t l = snprintf(global.errormsg, sizeof(global.errormsg), "%s:" fmt ":", __func__, ##__VA_ARGS__); \
+	strerror_r(errno, global.errormsg + l, sizeof(global.errormsg) - l); \
+} while(0)
 
 /**
  * The size of a dagdb_pointer or dagdb_size variable.
@@ -60,8 +74,8 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * Returns a pointer of type 'type', pointing to the given location in the database file.
  * Also handles stripping off the pointer's type information.
  */
-#define LOCATE(type,location) (type*)(global.file+(location&~DAGDB_TYPE_MASK))
 
+#define LOCATE(type,location) (type*)(assert(global.file!=MAP_FAILED),global.file+(location&~DAGDB_TYPE_MASK))
 /**
  * The amount of space (in bytes) reserved for the database header. 
  */
@@ -127,9 +141,15 @@ static struct {
 	 * The current size of the currently opened database.
 	 */
 	dagdb_size size;
-} global;
 
-const char dagdb_error[80];
+	/**
+	 * Buffer to contain error message.
+	 */
+	char errormsg[256];
+} global = {0, MAP_FAILED, 0, "dagdb: No error."};
+
+dagdb_error_code dagdb_errno;
+
 
 ///////////////////
 // Pointer types //
@@ -198,15 +218,22 @@ dagdb_size dagdb_round_up(dagdb_size v) {
 /**
  * Allocates the requested amount of bytes.
  * Currently always enlarges the file by 'length'.
+ * @return A pointer to the newly allocated memory, 0 in case of an error.
+ * TODO (high): let all uses of this function check the return value.
  */
-static dagdb_size dagdb_malloc(dagdb_size length) {
+static dagdb_pointer dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = global.size;
 	dagdb_size alength = dagdb_round_up(length);
 	global.size += alength;
-	assert(global.size <= MAX_SIZE);
+	if (global.size > MAX_SIZE) {
+		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
+		dagdb_report("Cannot enlarge database beyond hardcoded limit of %u bytes", MAX_SIZE);
+		return 0;
+	}
 	if (ftruncate(global.database_fd, global.size)) {
-		perror("dagdb_malloc");
-		abort();
+		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
+		dagdb_report_p("Failed to grow database file");
+		return 0;
 	}
 	assert((r&DAGDB_TYPE_MASK) == 0);
 	return r;
@@ -218,7 +245,7 @@ static dagdb_size dagdb_malloc(dagdb_size length) {
  * Note that the new allocated memory might be at a different location (even if shrinking).
  * TODO (high): unimplemented / implement realloc
  */
-static dagdb_size dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_size newlength) {
+static dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_size newlength) {
 	return 0;
 }
 
@@ -252,50 +279,67 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 int dagdb_load(const char *database) {
 	// Open the database file
 	int_fast32_t fd = open(database, O_RDWR | O_CREAT, 0644);
-	if (fd == -1) goto error;
-	//printf("Database file opened %d\n", fd);
+	if (fd == -1) {
+		dagdb_report_p("Cannot open '%s'", database);
+		goto error;
+	}
 
 	// Map database into memory
 	global.file = mmap(NULL, MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (global.file == MAP_FAILED) goto error;
-	//printf("Database data @ %p\n", file);
+	if (global.file == MAP_FAILED) {
+		dagdb_report_p("Cannot map file to memory");
+		goto error;
+	}
 
 	// Obtain length of database file
 	global.size = lseek(fd, 0, SEEK_END);
-	//printf("Database size: %d\n", size);
+	if (global.size>MAX_SIZE) {
+		dagdb_report("File exceeds hardcoded size limit %lu > %u", global.size, MAX_SIZE);
+		goto error;
+	}
 	
 	// database size must be a multiple of CHUNK_SIZE
-	assert((global.size%CHUNK_SIZE)==0); 
+	if((global.size%CHUNK_SIZE)!=0) {
+		dagdb_report("File has unexpected size %lu", global.size);
+		goto error;
+	}
 	
-	// Check or generate header information.
 	Header* h = LOCATE(Header,0);
 	if (global.size == 0) {
+		// Database is freshly created, initialize header.
 		global.database_fd = fd;
-		// Database must be empty.
-		assert(global.size==0);
-		if (ftruncate(fd, HEADER_SIZE)) {
-			perror("dagdb_load init");
-			abort();
+		if (ftruncate(fd, CHUNK_SIZE)) {
+			dagdb_report_p("Could not allocate %db diskspace for database", CHUNK_SIZE);
+			goto error;
 		}
 		h->magic=DAGDB_MAGIC;
 		h->format_version=FORMAT_VERSION;
-		global.size = HEADER_SIZE;
+		global.size = CHUNK_SIZE;
 		h->root=dagdb_trie_create();
 	} else {
-		// check headers.
-		assert(h->magic==DAGDB_MAGIC);
-		assert(h->format_version==FORMAT_VERSION);
-		//printf("Database format %d accepted.\n", h->format_version);
+		// Check headers.
+		if(h->magic!=DAGDB_MAGIC) {
+			dagdb_report("File has invalid magic");
+			goto error;
+		}
+		if(h->format_version!=FORMAT_VERSION) {
+			dagdb_report("File has incompatible format version");
+			goto error;
+		}
 		global.database_fd = fd;
 	}
 
-	//printf("Opened DB\n");
+	// Database opened succesfully.
 	return 0;
 
 error:
-	fflush(stdout);
-	perror("dagdb_load");
-	if (global.file != MAP_FAILED) global.file = 0;
+	// Something went wrong, so cleanup.
+	// At this point the error message must have been set already.
+	dagdb_errno = DAGDB_ERROR_INVALID_DB;
+	if (global.file!=MAP_FAILED) {
+		munmap(global.file, MAX_SIZE);
+		global.file = MAP_FAILED;
+	}
 	if (fd != -1) close(fd);
 	return -1;
 }
@@ -305,10 +349,9 @@ error:
  * Does nothing if no database file is currently open.
  */
 void dagdb_unload() {
-	if (global.file) {
-		assert(global.file!=MAP_FAILED);
+	if (global.file!=MAP_FAILED) {
 		munmap(global.file, MAX_SIZE);
-		global.file = 0;
+		global.file = MAP_FAILED;
 		//printf("Unmapped DB\n");
 	}
 	if (global.database_fd) {
@@ -316,6 +359,14 @@ void dagdb_unload() {
 		global.database_fd = 0;
 		//printf("Closed DB\n");
 	}
+}
+
+/**
+ * Returns a pointer to the static buffer that contains an explanation for the most recent error.
+ * If no error has happened, this still returns a pointer to a valid string.
+ */
+const char* dagdb_last_error() {
+	return global.errormsg;
 }
 
 
