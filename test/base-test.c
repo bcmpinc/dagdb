@@ -43,7 +43,7 @@
 
 static void print_info() {
 	MemorySlab a;
-	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), CHUNK_SIZE - sizeof(MemorySlab));
+	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), SLAB_SIZE - sizeof(MemorySlab));
 }
 
 static void test_no_error() {
@@ -71,6 +71,14 @@ static void test_round_up() {
 	CU_ASSERT_EQUAL(dagdb_round_up(260), 256u+S);
 }
 
+static void test_free_chunk_id() {
+	int i;
+	for(i=0; i<10000; i++) {
+		if (free_chunk_id(i-1)!=free_chunk_id(i))
+			printf("%3db -> chunk[%2ld]\n", i, free_chunk_id(i));
+	}
+}
+
 static dagdb_key key0 = {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,0,0,0,0,0,0,0,0,0x37,0xe7,0x52,0x0f};
 static int nibbles[] = {
 	1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,
@@ -89,6 +97,7 @@ static CU_TestInfo test_non_io[] = {
   { "no_errors", test_no_error },
   { "round_up", test_round_up },
   { "nibble", test_nibble },
+  { "chunk_id", test_free_chunk_id },
   CU_TEST_INFO_NULL,
 };
 
@@ -134,7 +143,7 @@ static CU_TestInfo test_loading[] = {
 ///////////////////////////////////////////////////////////////////////////////
 
 static void test_mem_initial() {
-	CU_ASSERT_EQUAL(global.size, CHUNK_SIZE);
+	CU_ASSERT_EQUAL(global.size, SLAB_SIZE);
 	// TODO: add test that checks memory usage & bitmap of first chunk.
 }
 

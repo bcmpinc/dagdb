@@ -79,7 +79,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * The amount of space (in bytes) reserved for the database header. 
  */
-#define HEADER_SIZE 512
+#define HEADER_SIZE 1024
 
 /**
  * Counter for the database format. Incremented whenever a format change
@@ -93,6 +93,16 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  */
 #define DAGDB_MAGIC (*(uint32_t*)"D-db")
 
+/**
+ * Length of the free memory chunk lists table.
+ */
+#define CHUNK_TABLE_SIZE 42
+
+/**
+ * Maximum allocatable chunk size.
+ * This is 'hand-picked' and based on CHUNK_TABLE_SIZE.
+ */
+#define MAX_CHUNK_SIZE 5118
 
 ///////////
 // Types //
@@ -117,7 +127,7 @@ typedef struct {
 	int32_t magic;
 	int32_t format_version;
 	dagdb_pointer root;
-	FreeMemoryChunk chunks[31];
+	FreeMemoryChunk chunks[CHUNK_TABLE_SIZE];
 } Header;
 STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
@@ -170,26 +180,34 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 // Space allocation //
 //////////////////////
 
+/** Number of bits in a byte. */
+#define BITS_PER_BYTE 8
+
 /** The size of a single memory page. This value can differ between systems, but is usually 4096. */
 #define PAGE_SIZE 4096
 
-/** Size of a single memory slab/chunk. */
-#define CHUNK_SIZE (8 * PAGE_SIZE)
+/** Size of a single memory slab. */
+#define SLAB_SIZE (8 * 4096)
 
 /** 
  * Number of ints that fit in the slab (in ints), while perserving room for the usage bitmap. 
  */
-#define BITMAP_SIZE ((CHUNK_SIZE*8) / (S*8+1))
+#define BITMAP_SIZE ((SLAB_SIZE*BITS_PER_BYTE) / (S*BITS_PER_BYTE+1))
+
+/**
+ * Integer type used to store the bitmap.
+ */
+typedef uint64_t bitmap_base_type;
 
 /**
  * A struct for the internal structure of a slab.
  */
 typedef struct {
 	dagdb_pointer data[BITMAP_SIZE];
-	uint_fast32_t bitmap[(BITMAP_SIZE+sizeof(uint_fast32_t)*8-1)/sizeof(uint_fast32_t)/8];
+	bitmap_base_type bitmap[(BITMAP_SIZE+sizeof(bitmap_base_type)*8-1)/sizeof(bitmap_base_type)/8];
 } MemorySlab;
-STATIC_ASSERT(sizeof(MemorySlab) <= CHUNK_SIZE, memory_slab_fits_in_chunk);
-STATIC_ASSERT(sizeof(MemorySlab) > CHUNK_SIZE - 2*S, memory_slab_does_not_waste_too_much);
+STATIC_ASSERT(sizeof(MemorySlab) <= SLAB_SIZE, memory_slab_fits_in_a_slab);
+STATIC_ASSERT(sizeof(MemorySlab) > SLAB_SIZE - 2*S, memory_slab_does_not_waste_too_much);
 
 /**
  * Computes the log2 of an 32-bit integer.
@@ -204,6 +222,15 @@ static inline uint_fast32_t lg2(register uint_fast32_t v) {
 	shift = (v > 0x3   ) << 1; v >>= shift; r |= shift;
 	r |= (v >> 1);
 	return r;
+}
+
+static uint_fast32_t free_chunk_id(uint_fast32_t v) {
+	v+=4-sizeof(FreeMemoryChunk)/sizeof(dagdb_pointer);
+	if (v<=4) return 0;
+	uint_fast32_t l = lg2(v);
+	l=((l<<2) | ((v>>l-2) & 3))-8;
+	if (l>=CHUNK_TABLE_SIZE) return CHUNK_TABLE_SIZE-1;
+	return l;
 }
 
 /**
@@ -298,8 +325,8 @@ int dagdb_load(const char *database) {
 		goto error;
 	}
 	
-	// database size must be a multiple of CHUNK_SIZE
-	if((global.size%CHUNK_SIZE)!=0) {
+	// database size must be a multiple of SLAB_SIZE
+	if((global.size%SLAB_SIZE)!=0) {
 		dagdb_report("File has unexpected size %lu", global.size);
 		goto error;
 	}
@@ -308,13 +335,13 @@ int dagdb_load(const char *database) {
 	if (global.size == 0) {
 		// Database is freshly created, initialize header.
 		global.database_fd = fd;
-		if (ftruncate(fd, CHUNK_SIZE)) {
-			dagdb_report_p("Could not allocate %db diskspace for database", CHUNK_SIZE);
+		if (ftruncate(fd, SLAB_SIZE)) {
+			dagdb_report_p("Could not allocate %db diskspace for database", SLAB_SIZE);
 			goto error;
 		}
 		h->magic=DAGDB_MAGIC;
 		h->format_version=FORMAT_VERSION;
-		global.size = CHUNK_SIZE;
+		global.size = SLAB_SIZE;
 		h->root=dagdb_trie_create();
 	} else {
 		// Check headers.
