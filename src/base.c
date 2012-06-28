@@ -101,6 +101,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * Maximum allocatable chunk size.
  * This is 'hand-picked' and based on CHUNK_TABLE_SIZE.
+ * There is a test 'test_chunk_id' that computes the correct value for this #define and verifies that it equals the value below.
  */
 #define MAX_CHUNK_SIZE 5118
 
@@ -224,13 +225,25 @@ static inline uint_fast32_t lg2(register uint_fast32_t v) {
 	return r;
 }
 
-static uint_fast32_t free_chunk_id(uint_fast32_t v) {
+/**
+ * Computes to what chunk list a chunk of size v must be added.
+ */
+static int_fast32_t free_chunk_id(uint_fast32_t v) {
 	v+=4-sizeof(FreeMemoryChunk)/sizeof(dagdb_pointer);
-	if (v<=4) return 0;
+	if (v<4) return -1;
 	uint_fast32_t l = lg2(v);
-	l=((l<<2) | ((v>>l-2) & 3))-8;
+	l=((l<<2) | ((v>>(l-2)) & 3))-8;
 	if (l>=CHUNK_TABLE_SIZE) return CHUNK_TABLE_SIZE-1;
 	return l;
+}
+
+/**
+ * Tells what chunk list we must use to find a chunk of at least size v.
+ * The argument v is not allowed to exceed MAX_CHUNK_SIZE.
+ */
+static int_fast32_t alloc_chunk_id(uint_fast32_t v) {
+	assert(v<=MAX_CHUNK_SIZE); // must have been checked before calling.
+	return free_chunk_id(v-1)+1;
 }
 
 /**

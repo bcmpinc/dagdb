@@ -71,11 +71,14 @@ static void test_round_up() {
 	CU_ASSERT_EQUAL(dagdb_round_up(260), 256u+S);
 }
 
-static void test_free_chunk_id() {
+static void test_chunk_id() {
 	int i;
-	for(i=0; i<10000; i++) {
-		if (free_chunk_id(i-1)!=free_chunk_id(i))
-			printf("%3db -> chunk[%2ld]\n", i, free_chunk_id(i));
+	for(i=1; i<10000; i++) {
+		if (free_chunk_id(i)==CHUNK_TABLE_SIZE-1) {
+			CU_ASSERT_EQUAL(i, MAX_CHUNK_SIZE);
+			break;
+		}
+		CU_ASSERT_FATAL(free_chunk_id(i)<alloc_chunk_id(i+1));
 	}
 }
 
@@ -97,7 +100,7 @@ static CU_TestInfo test_non_io[] = {
   { "no_errors", test_no_error },
   { "round_up", test_round_up },
   { "nibble", test_nibble },
-  { "chunk_id", test_free_chunk_id },
+  { "chunk_id", test_chunk_id },
   CU_TEST_INFO_NULL,
 };
 
