@@ -36,7 +36,7 @@
  * affected by bugs that can trigger later tests.
  */
 
-#define PRINT_ERROR_IF_ANY if(dagdb_errno>0){fprintf(stderr,"%d: %s\n", dagdb_errno, dagdb_last_error()); dagdb_errno=0;}
+#define PRINT_ERROR_IF_ANY if(dagdb_errno>0){fflush(stdout); fprintf(stderr,"\nerror %d: %s\n", dagdb_errno, dagdb_last_error()); dagdb_errno=0; fflush(stderr);}
 #define CLEAR_ERROR dagdb_errno=0;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -146,6 +146,7 @@ static void test_mem_grow_much() {
 
 static void test_mem_growing() {
 	int oldsize = global.size;
+	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_NONE);
 	dagdb_pointer p = dagdb_malloc(1024); PRINT_ERROR_IF_ANY
 	// TODO: update this test when chunked memory management is implemented
 	CU_ASSERT_FATAL(p>0);

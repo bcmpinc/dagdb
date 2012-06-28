@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
 	printf("Testing DAGDB\n");
 	CU_initialize_registry();
 	//CU_basic_set_mode(CU_BRM_SILENT);
-	//CU_basic_set_mode(CU_BRM_NORMAL);
-	CU_basic_set_mode(CU_BRM_VERBOSE);
+	CU_basic_set_mode(CU_BRM_NORMAL);
+	//CU_basic_set_mode(CU_BRM_VERBOSE);
 	int i=0;
 	while(base2_suites[i].pName) {
 		CU_pSuite s = CU_add_suite(base2_suites[i].pName,base2_suites[i].pInitFunc,base2_suites[i].pCleanupFunc);

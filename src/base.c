@@ -223,18 +223,18 @@ dagdb_size dagdb_round_up(dagdb_size v) {
  */
 static dagdb_pointer dagdb_malloc(dagdb_size length) {
 	dagdb_pointer r = global.size;
-	dagdb_size alength = dagdb_round_up(length);
-	global.size += alength;
-	if (global.size > MAX_SIZE) {
+	dagdb_size new_size = global.size + dagdb_round_up(length);
+	if (new_size > MAX_SIZE) {
 		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
-		dagdb_report("Cannot enlarge database beyond hardcoded limit of %u bytes", MAX_SIZE);
+		dagdb_report("Cannot enlarge database of %lub with %lub beyond hardcoded limit of %u bytes", global.size, length, MAX_SIZE);
 		return 0;
 	}
-	if (ftruncate(global.database_fd, global.size)) {
+	if (ftruncate(global.database_fd, new_size)) {
 		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
 		dagdb_report_p("Failed to grow database file");
 		return 0;
 	}
+	global.size = new_size;
 	assert((r&DAGDB_TYPE_MASK) == 0);
 	return r;
 }
