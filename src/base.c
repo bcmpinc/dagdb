@@ -265,9 +265,9 @@ static int_fast32_t alloc_chunk_id(uint_fast32_t v) {
 /**
  * Inserts the given chunk into the free chunk linked list table.
  */
-static void dagdb_chunk_insert(dagdb_pointer location, int_fast32_t size) {
+static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
 	assert(size>=sizeof(FreeMemoryChunk));
-	assert(location==dagdb_round_up(location));
+	assert(location%S==0);
 	assert(location>=HEADER_SIZE);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
 	int_fast32_t id = free_chunk_id(size);
@@ -289,6 +289,33 @@ static void dagdb_chunk_remove(dagdb_pointer location) {
 	LOCATE(FreeMemoryChunk,c->prev)->next = c->next;
 	c->prev = c->next = 0;
 }
+
+#define B (S*8)
+#define BITMAP_MASK_APPLY(i, m) { if (value) { (i) |= (m); } else { (i) &= ~(m); } }
+static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
+	assert(value==0 || value==1);
+	assert(location%S==0);
+	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
+	dagdb_pointer base = location & (SLAB_SIZE-1);
+	MemorySlab * s = LOCATE(MemorySlab, base);
+	int_fast32_t offset = (location-base)/S;
+	int_fast32_t len = dagdb_round_up(size)/S;
+	// BITMAP_MASK_APPLY( location in array, mask end - mask start)
+	// all bits: 0 - 1 
+	if (offset%B+len <= B) {
+		BITMAP_MASK_APPLY(s->bitmap[offset/B], (1<<(offset%B+len))-(1<<offset%B));
+	} else {
+		BITMAP_MASK_APPLY(s->bitmap[offset/B], 0-(1<<offset%B));
+		if ((offset+len)%B>0) 
+			BITMAP_MASK_APPLY(s->bitmap[(offset+len)/B], (1<<(offset+len)%B)-1);
+		int_fast32_t i;
+		for (i=offset/B+1; i<(offset+len)/B; i++) {
+			BITMAP_MASK_APPLY(s->bitmap[i], -1);
+		}
+	}
+	
+}
+STATIC_ASSERT((SLAB_SIZE & (SLAB_SIZE-1)) == 0, slab_size_power_of_two);
 
 /**
  * Allocates the requested amount of bytes.
@@ -348,7 +375,7 @@ STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);
  * If the current data must be moved to a different location, this function will perform that move.
  * Note that the new allocated memory might be at a different location (even if shrinking).
  * When growing, the newly allocated bits remain uninitialized.
- * TODO (high): unimplemented / implement realloc
+ * TODO (med): unimplemented / implement realloc
  */
 static dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_size newlength) {
 	return 0;
@@ -392,13 +419,16 @@ static void dagdb_initialize_header(Header* h) {
 	// Insert the unused part of the slab in the free chunk table.
 	dagdb_chunk_insert(HEADER_SIZE, SLAB_USEABLE_SPACE_SIZE-HEADER_SIZE);
 	
+	// Mark header as used in bitmap
+	dagdb_bitmap_mark(0, HEADER_SIZE, 1);
+	
 	// Create the root trie.
 	h->root=dagdb_trie_create();
 }
 
 /**
  * Opens the given file. Creates it if it does not yet exist.
- * @returns 0 if succesfull.
+ * @returns 0 if successful.
  * TODO (high): give more information in case of error.
  * TODO (high): convert failing assertions to load failure.
  */
@@ -453,7 +483,7 @@ int dagdb_load(const char *database) {
 		global.database_fd = fd;
 	}
 
-	// Database opened succesfully.
+	// Database opened successfully.
 	return 0;
 
 error:
