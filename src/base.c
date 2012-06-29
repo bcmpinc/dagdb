@@ -79,7 +79,7 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * The amount of space (in bytes) reserved for the database header. 
  */
-#define HEADER_SIZE 1024
+#define HEADER_SIZE 512
 
 /**
  * Counter for the database format. Incremented whenever a format change
@@ -96,14 +96,14 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 /**
  * Length of the free memory chunk lists table.
  */
-#define CHUNK_TABLE_SIZE 42
+#define CHUNK_TABLE_SIZE 31
 
 /**
- * Maximum allocatable chunk size.
+ * Maximum allocatable chunk size (in bytes).
  * This is 'hand-picked' and based on CHUNK_TABLE_SIZE.
  * There is a test 'test_chunk_id' that computes the correct value for this #define and verifies that it equals the value below.
  */
-#define MAX_CHUNK_SIZE 5118
+#define MAX_CHUNK_SIZE 766*S
 
 ///////////
 // Types //
@@ -195,6 +195,9 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
  */
 #define BITMAP_SIZE ((SLAB_SIZE*BITS_PER_BYTE) / (S*BITS_PER_BYTE+1))
 
+/**
+ * Returns a dagdb_pointer, pointing to the root element of the linked list with the given id in the free chunk table.
+ */
 #define CHUNK_TABLE_LOCATION(id) ((dagdb_pointer)&(((Header*)0)->chunks[id]))
 
 /**
@@ -241,6 +244,7 @@ static inline uint_fast32_t lg2(register uint_fast32_t v) {
  * Computes to what chunk list a chunk of size v must be added.
  */
 static int_fast32_t free_chunk_id(uint_fast32_t v) {
+	v/=S;
 	v+=4-sizeof(FreeMemoryChunk)/sizeof(dagdb_pointer);
 	if (v<4) return -1;
 	uint_fast32_t l = lg2(v);
@@ -300,6 +304,11 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 		dagdb_report("Cannot enlarge database of %lub with %lub beyond hardcoded limit of %u bytes", global.size, length, MAX_SIZE);
 		return 0;
 	}
+	if (length > MAX_CHUNK_SIZE) {
+		dagdb_errno = DAGDB_ERROR_BAD_ARGUMENT;
+		dagdb_report("Cannot allocate %lub, which is larger than the maximum %lub.", length, MAX_CHUNK_SIZE);
+		return 0;
+	}
 	if (ftruncate(global.database_fd, new_size)) {
 		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
 		dagdb_report_p("Failed to grow database file");
@@ -309,6 +318,7 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 	assert((r&DAGDB_TYPE_MASK) == 0);
 	return r;
 }
+STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);
 
 /**
  * Enlarges or shrinks the provided memory such that its size is the given amount of bytes.

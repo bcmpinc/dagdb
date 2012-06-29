@@ -95,9 +95,23 @@ static void test_chunk_id() {
 	for(i=1; i<10000; i++) {
 		if (free_chunk_id(i)==CHUNK_TABLE_SIZE-1) {
 			CU_ASSERT_EQUAL(i, MAX_CHUNK_SIZE);
+			CU_ASSERT_EQUAL(i%S, 0);
+			if (i!=MAX_CHUNK_SIZE) {
+				printf("\nMAX_CHUNK_SIZE should be %ld*S\n", i/S);
+			}
 			break;
 		}
-		CU_ASSERT_FATAL(free_chunk_id(i)<alloc_chunk_id(i+1));
+		// By allocating a chunk of a given size and then freeing it, we should not be able to increase the id.
+		// Additionally, freeing one byte less, should always yield a lower id.
+		if (free_chunk_id(i)>=alloc_chunk_id(i+1)) {
+			printf("\ni = %d\n", i);
+			CU_ASSERT_FALSE_FATAL(free_chunk_id(i)>=alloc_chunk_id(i+1));
+		}
+		// free_chunk_id must be monotonic.
+		if (free_chunk_id(i-1)>free_chunk_id(i)) {
+			printf("\ni = %d\n", i);
+			CU_ASSERT_FALSE_FATAL(free_chunk_id(i-1)>free_chunk_id(i));
+		}
 	}
 }
 
