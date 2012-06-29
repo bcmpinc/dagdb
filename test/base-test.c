@@ -89,7 +89,7 @@ static void test_no_error() {
 }
 
 static void test_round_up() {
-	const dagdb_size L = sizeof(FreeMemoryChunk);
+	const dagdb_size L = MIN_CHUNK_SIZE;
 	EX_ASSERT_EQUAL_INT(dagdb_round_up(0), L);
 	EX_ASSERT_EQUAL_INT(dagdb_round_up(1), L);
 	EX_ASSERT_EQUAL_INT(dagdb_round_up(2), L);

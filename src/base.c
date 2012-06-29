@@ -99,6 +99,12 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 #define CHUNK_TABLE_SIZE 31
 
 /**
+ * Minimal allocatable chunk size (in bytes).
+ * This is just sufficient to store the next and previous pointer of the linked list.
+ */
+#define MIN_CHUNK_SIZE 2*S
+
+/**
  * Maximum allocatable chunk size (in bytes).
  * This is 'hand-picked' and based on CHUNK_TABLE_SIZE.
  * There is a test 'test_chunk_id' that computes the correct value for this #define and verifies that it equals the value below.
@@ -110,15 +116,19 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
 ///////////
 
 /**
- * This is embedded in all free memory chunks,
- * except those that are too small.
+ * This is embedded in all free memory chunks, except those that are too small.
  * These create linked lists of chunks that are approximately the same size.
+ * 
+ * Parameters only exist when sufficient space is available. The first two parameters always exist, as 
+ * defined by MIN_CHUNK_SIZE.
  */
 typedef struct {
 	dagdb_pointer prev; 
 	dagdb_pointer next;
+	dagdb_size size;
 } FreeMemoryChunk;
-STATIC_ASSERT(sizeof(FreeMemoryChunk)/S*S == sizeof(FreeMemoryChunk), fmc_size_is_multiple_of_s);
+STATIC_ASSERT(MIN_CHUNK_SIZE%S == 0, min_chunk_size_is_multiple_of_s);
+STATIC_ASSERT(sizeof(FreeMemoryChunk)%S == 0, fmc_size_is_multiple_of_s);
 
 /**
  * Stores some basic information about the database.
@@ -128,7 +138,7 @@ typedef struct {
 	int32_t magic;
 	int32_t format_version;
 	dagdb_pointer root;
-	FreeMemoryChunk chunks[CHUNK_TABLE_SIZE];
+	dagdb_pointer chunks[2*CHUNK_TABLE_SIZE];
 } Header;
 STATIC_ASSERT(sizeof(Header) <= HEADER_SIZE, header_too_large);
 
@@ -198,7 +208,7 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
 /**
  * Returns a dagdb_pointer, pointing to the root element of the linked list with the given id in the free chunk table.
  */
-#define CHUNK_TABLE_LOCATION(id) ((dagdb_pointer)&(((Header*)0)->chunks[id]))
+#define CHUNK_TABLE_LOCATION(id) ((dagdb_pointer)&(((Header*)0)->chunks[2*(id)]))
 
 /**
  * Integer type used to store the bitmap.
@@ -221,7 +231,7 @@ STATIC_ASSERT(sizeof(MemorySlab) > SLAB_SIZE - 2*S, memory_slab_does_not_waste_t
  * This is either the smallest allocatable size or a multiple of S.
  */
 dagdb_size dagdb_round_up(dagdb_size v) {
-	if (v<sizeof(FreeMemoryChunk)) return sizeof(FreeMemoryChunk);
+	if (v<MIN_CHUNK_SIZE) return MIN_CHUNK_SIZE;
 	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
 }
 
@@ -245,7 +255,7 @@ static inline uint_fast32_t lg2(register uint_fast32_t v) {
  */
 static int_fast32_t free_chunk_id(uint_fast32_t v) {
 	v/=S;
-	v+=4-sizeof(FreeMemoryChunk)/sizeof(dagdb_pointer);
+	v+=4-MIN_CHUNK_SIZE/sizeof(dagdb_pointer);
 	if (v<4) return -1;
 	uint_fast32_t l = lg2(v);
 	l=((l<<2) | ((v>>(l-2)) & 3))-8;
@@ -278,6 +288,9 @@ static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
 	n->prev = table;
 	n->next = t->next;
 	t->next = location;
+	if (size>=sizeof(FreeMemoryChunk)) {
+		n->size = size;
+	}
 }
 
 /**
@@ -285,13 +298,30 @@ static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
  */
 static void dagdb_chunk_remove(dagdb_pointer location) {
 	FreeMemoryChunk * c = LOCATE(FreeMemoryChunk, location);
+	assert(c->next>0);
+	assert(c->prev>0);
 	LOCATE(FreeMemoryChunk,c->next)->prev = c->prev;
 	LOCATE(FreeMemoryChunk,c->prev)->next = c->next;
 	c->prev = c->next = 0;
 }
 
-#define B (S*8)
-#define BITMAP_MASK_APPLY(i, m) { if (value) { (i) |= (m); } else { (i) &= ~(m); } }
+/**
+ * Sets or unsets bits in a given slab's bitmap.
+ */
+static inline void dagdb_bitmap_mask_apply(MemorySlab * s, int_fast32_t i, bitmap_base_type m, int_fast32_t value) { 
+	if (value) { 
+		assert((s->bitmap[i]&m)==0); 
+		s->bitmap[i] |= m;
+	} else { 
+		assert((s->bitmap[i]&m)==m); 
+		s->bitmap[i] &= ~m;
+	} 
+}
+
+#define B (sizeof(bitmap_base_type)*8)
+/**
+ * Set or unset the usage flag of the given range in a slab's bitmap.
+ */
 static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
 	assert(value==0 || value==1);
 	assert(location%S==0);
@@ -303,14 +333,14 @@ static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast3
 	// BITMAP_MASK_APPLY( location in array, mask end - mask start)
 	// all bits: 0 - 1 
 	if (offset%B+len <= B) {
-		BITMAP_MASK_APPLY(s->bitmap[offset/B], (1<<(offset%B+len))-(1<<offset%B));
+		dagdb_bitmap_mask_apply(s, offset/B, (1<<(offset%B+len))-(1<<offset%B), value);
 	} else {
-		BITMAP_MASK_APPLY(s->bitmap[offset/B], 0-(1<<offset%B));
+		dagdb_bitmap_mask_apply(s, offset/B, 0-(1<<offset%B), value);
 		if ((offset+len)%B>0) 
-			BITMAP_MASK_APPLY(s->bitmap[(offset+len)/B], (1<<(offset+len)%B)-1);
+			dagdb_bitmap_mask_apply(s, (offset+len)/B, (1<<(offset+len)%B)-1, value);
 		int_fast32_t i;
 		for (i=offset/B+1; i<(offset+len)/B; i++) {
-			BITMAP_MASK_APPLY(s->bitmap[i], -1);
+			dagdb_bitmap_mask_apply(s, i, -1, value);
 		}
 	}
 	
@@ -412,8 +442,8 @@ static void dagdb_initialize_header(Header* h) {
 	// Self-link all items in the free chunk table.
 	int_fast32_t i;
 	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
-		h->chunks[i].prev = 
-		h->chunks[i].next = CHUNK_TABLE_LOCATION(i);
+		FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(i));
+		m->prev = m->next = CHUNK_TABLE_LOCATION(i);
 	}
 	
 	// Insert the unused part of the slab in the free chunk table.
