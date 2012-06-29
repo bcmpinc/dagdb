@@ -16,12 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <CUnit/CUnit.h>
+// include the entire file being tested.
+#include "../src/base.c"
+
 #include <string.h>
 #include <sys/stat.h>
 
-// include the entire file being tested.
-#include "../src/base.c"
 
 /** \file
  * Tests the I/O base system of DagDB.
@@ -36,8 +36,26 @@
  * affected by bugs that can trigger later tests.
  */
 
-#define PRINT_ERROR_IF_ANY if(dagdb_errno>0){fflush(stdout); fprintf(stderr,"\nerror %d: %s\n", dagdb_errno, dagdb_last_error()); dagdb_errno=0; fflush(stderr);}
-#define CLEAR_ERROR dagdb_errno=0;
+#include <CUnit/CUnit.h>
+#define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
+	type a = (actual), e = (expected); \
+	char msg[512];\
+	snprintf(msg,512, #name "(%s, %s) = " #name "("fmt", "fmt")", #actual, #expected, a, e); \
+	CU_assertImplementation(a==e, __LINE__, msg, __FILE__, "", CU_FALSE); \
+}
+#define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(expected, actual, int, "%d", EX_ASSERT_EQUAL_INT)
+#define EX_ASSERT_ERROR(expected) {\
+	char msg[512];\
+	snprintf(msg,512, "CHECK_ERROR(%s), got %d: %s", #expected, dagdb_errno, dagdb_last_error()); \
+	CU_assertImplementation(dagdb_errno==(expected), __LINE__, msg, __FILE__, "", CU_FALSE); \
+	dagdb_errno=DAGDB_ERROR_NONE; \
+}
+#define EX_ASSERT_NO_ERROR {\
+	char msg[512];\
+	snprintf(msg,512, "EX_ASSERT_NO_ERROR, got %d: %s", dagdb_errno, dagdb_last_error()); \
+	CU_assertImplementation(dagdb_errno==DAGDB_ERROR_NONE, __LINE__, msg, __FILE__, "", CU_FALSE); \
+	dagdb_errno=DAGDB_ERROR_NONE; \
+}
 
 /**
  * Verifies that all linked lists in the free chunk table are properly linked.
@@ -52,9 +70,9 @@ static void verify_chunk_table() {
 		do {
 			dagdb_pointer next = LOCATE(FreeMemoryChunk, current)->next;
 			CU_ASSERT(current < global.size);
-			CU_ASSERT_EQUAL(current, LOCATE(FreeMemoryChunk, next)->prev);
+			EX_ASSERT_EQUAL_INT(current, LOCATE(FreeMemoryChunk, next)->prev);
 		} while (current>=HEADER_SIZE);
-		CU_ASSERT_EQUAL(current, list);
+		EX_ASSERT_EQUAL_INT(current, list);
 	}
 }
 
@@ -66,36 +84,36 @@ static void print_info() {
 }
 
 static void test_no_error() {
-	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_NONE);
+	EX_ASSERT_NO_ERROR
 	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
 }
 
 static void test_round_up() {
 	const dagdb_size L = sizeof(FreeMemoryChunk);
-	CU_ASSERT_EQUAL(dagdb_round_up(0), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(1), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(2), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(3), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(4), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(L+0), L);
-	CU_ASSERT_EQUAL(dagdb_round_up(L+1), L+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(L+2), L+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(L+3), L+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(L+4), L+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(255), 256u);
-	CU_ASSERT_EQUAL(dagdb_round_up(256), 256u);
-	CU_ASSERT_EQUAL(dagdb_round_up(257), 256u+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(258), 256u+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(259), 256u+S);
-	CU_ASSERT_EQUAL(dagdb_round_up(260), 256u+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(0), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(1), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(2), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(3), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(4), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+0), L);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+1), L+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+2), L+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+3), L+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+4), L+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(255), 256u);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(256), 256u);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(257), 256u+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(258), 256u+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(259), 256u+S);
+	EX_ASSERT_EQUAL_INT(dagdb_round_up(260), 256u+S);
 }
 
 static void test_chunk_id() {
 	int i;
 	for(i=1; i<10000; i++) {
 		if (free_chunk_id(i)==CHUNK_TABLE_SIZE-1) {
-			CU_ASSERT_EQUAL(i, MAX_CHUNK_SIZE);
-			CU_ASSERT_EQUAL(i%S, 0);
+			EX_ASSERT_EQUAL_INT(i, MAX_CHUNK_SIZE);
+			EX_ASSERT_EQUAL_INT(i%S, 0);
 			if (i!=MAX_CHUNK_SIZE) {
 				printf("\nMAX_CHUNK_SIZE should be %ld*S\n", i/S);
 			}
@@ -125,7 +143,7 @@ static int nibbles[] = {
 static void test_nibble() {
 	int i;
 	for (i=0; i<DAGDB_KEY_LENGTH; i++)
-		CU_ASSERT_EQUAL(nibble(key0,i), nibbles[i]);
+		EX_ASSERT_EQUAL_INT(nibble(key0,i), nibbles[i]);
 }
 
 static CU_TestInfo test_non_io[] = {
@@ -142,13 +160,13 @@ static CU_TestInfo test_non_io[] = {
 
 static void test_load_init() {
 	unlink(DB_FILENAME);
-	int r = dagdb_load(DB_FILENAME); PRINT_ERROR_IF_ANY
+	int r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR
 	CU_ASSERT(r == 0); 
 	dagdb_unload();
 }
 
 static void test_load_reload() {
-	int r = dagdb_load(DB_FILENAME); PRINT_ERROR_IF_ANY
+	int r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR
 	CU_ASSERT(r == 0); 
 	dagdb_unload();
 }
@@ -163,7 +181,7 @@ static void test_load_failure() {
 	CU_ASSERT(r == 0); 
 	r = dagdb_load(DB_FILENAME);  
 	CU_ASSERT(r == -1); 
-	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_INVALID_DB); CLEAR_ERROR
+	EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
 	dagdb_unload(); // <- again superfluous
 	rmdir(DB_FILENAME);
 }
@@ -179,31 +197,42 @@ static CU_TestInfo test_loading[] = {
 ///////////////////////////////////////////////////////////////////////////////
 
 static void test_mem_initial() {
-	CU_ASSERT_EQUAL(global.size, SLAB_SIZE);
+	EX_ASSERT_EQUAL_INT(global.size, SLAB_SIZE);
 	verify_chunk_table();
 	// TODO: add test that checks memory usage & bitmap of first slab.
 }
 
-static void test_mem_grow_much() {
-	dagdb_pointer p = dagdb_malloc(MAX_SIZE); 
-	CU_ASSERT_EQUAL(p, 0);
-	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_DB_TOO_LARGE); CLEAR_ERROR
+static void test_mem_alloc_too_much() {
+	dagdb_pointer p = dagdb_malloc(MAX_CHUNK_SIZE + 1); 
+	EX_ASSERT_EQUAL_INT(p, 0);
+	EX_ASSERT_ERROR(DAGDB_ERROR_BAD_ARGUMENT); 
 }
 
 static void test_mem_growing() {
 	int oldsize = global.size;
-	CU_ASSERT_EQUAL(dagdb_errno, DAGDB_ERROR_NONE);
-	dagdb_pointer p = dagdb_malloc(1024); PRINT_ERROR_IF_ANY
-	// TODO: update this test when chunked memory management is implemented
-	CU_ASSERT_FATAL(p>0);
-	CU_ASSERT_EQUAL(global.size, oldsize + 1024);
-	dagdb_free(p, 1024); 
-	CU_ASSERT_EQUAL(global.size, oldsize);
+	EX_ASSERT_NO_ERROR
+	const int ALLOC_SIZE = 2048;
+	const int N = SLAB_SIZE / ALLOC_SIZE;
+	dagdb_pointer p[N];
+	int i;
+	
+	// growing
+	for (i=0; i<N; i++) {
+		p[i] = dagdb_malloc(ALLOC_SIZE); EX_ASSERT_NO_ERROR
+		CU_ASSERT_FATAL(p[i]>0);
+	}
+	EX_ASSERT_EQUAL_INT(global.size, oldsize + SLAB_SIZE);
+	
+	// shrinking
+	for (i=0; i<N; i++) {
+		dagdb_free(p[i], ALLOC_SIZE); 
+	}
+	EX_ASSERT_EQUAL_INT(global.size, oldsize);
 }
 
 static CU_TestInfo test_mem[] = {
   { "memory_initial", test_mem_initial },
-  { "memory_error_grow", test_mem_grow_much },
+  { "memory_error_alloc", test_mem_alloc_too_much },
   { "memory_growing", test_mem_growing },
   CU_TEST_INFO_NULL,
 };
@@ -220,19 +249,19 @@ static void test_data() {
 	const char *data = "This is a test";
 	uint_fast32_t len = strlen(data);
 	dagdb_pointer p = dagdb_data_create(len, data);
-	CU_ASSERT_EQUAL(dagdb_get_type(p), DAGDB_TYPE_DATA);
-	CU_ASSERT_EQUAL(dagdb_data_length(p), len);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(p), DAGDB_TYPE_DATA);
+	EX_ASSERT_EQUAL_INT(dagdb_data_length(p), len);
 	CU_ASSERT_NSTRING_EQUAL((const char *) dagdb_data_read(p), data, len);
 	dagdb_data_delete(p);
-	CU_ASSERT_EQUAL(dagdb_data_length(p), 0u); // UNDEFINED BEHAVIOR
+	EX_ASSERT_EQUAL_INT(dagdb_data_length(p), 0u); // UNDEFINED BEHAVIOR
 }
 
 static void test_element() {
 	dagdb_pointer el = dagdb_element_create(key1, 1000, 1337);
 	CU_ASSERT(el);
-	CU_ASSERT_EQUAL(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_element_data(el), 1000u);
-	CU_ASSERT_EQUAL(dagdb_element_backref(el), 1337u);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_element_data(el), 1000u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el), 1337u);
 	key k = obtain_key(el);
 	CU_ASSERT_NSTRING_EQUAL(k,key1,DAGDB_KEY_LENGTH);
 	dagdb_element_delete(el);
@@ -241,24 +270,24 @@ static void test_element() {
 static void test_kvpair() {
 	// Depends on element
 	dagdb_pointer el = dagdb_element_create(key1, 1, 2);
-	CU_ASSERT_EQUAL(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
 	dagdb_pointer kv = dagdb_kvpair_create(el, 42);
 	CU_ASSERT(kv);
-	CU_ASSERT_EQUAL(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
-	CU_ASSERT_EQUAL(dagdb_kvpair_key(kv), el);
-	CU_ASSERT_EQUAL(dagdb_kvpair_value(kv), 42u);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
+	EX_ASSERT_EQUAL_INT(dagdb_kvpair_key(kv), el);
+	EX_ASSERT_EQUAL_INT(dagdb_kvpair_value(kv), 42u);
 	key k = obtain_key(kv);
 	CU_ASSERT_NSTRING_EQUAL(k,key1,DAGDB_KEY_LENGTH);
 	dagdb_kvpair_delete(kv);
-	CU_ASSERT_EQUAL(dagdb_element_data(el), 1u);
-	CU_ASSERT_EQUAL(dagdb_element_backref(el), 2u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_data(el), 1u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el), 2u);
 	dagdb_element_delete(el);
 }
 
 static void test_trie() {
 	dagdb_pointer t = dagdb_trie_create();
 	CU_ASSERT(t);
-	CU_ASSERT_EQUAL(dagdb_get_type(t), DAGDB_TYPE_TRIE);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(t), DAGDB_TYPE_TRIE);
 	dagdb_trie_delete(t);
 }
 
@@ -277,73 +306,73 @@ static void test_insert() {
 	dagdb_pointer el1 = dagdb_element_create(key1, 1, 2);
 	dagdb_pointer el2 = dagdb_element_create(key2, 3, 4);
 	dagdb_pointer el3 = dagdb_element_create(key1, 5, 6); // this is indeed the first key.
-	CU_ASSERT_EQUAL(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_get_type(el3), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el3), DAGDB_TYPE_ELEMENT);
 	r = dagdb_trie_insert(dagdb_root(), el1);
-	CU_ASSERT_EQUAL(r, 1);
+	EX_ASSERT_EQUAL_INT(r, 1);
 	r = dagdb_trie_insert(dagdb_root(), el2);
-	CU_ASSERT_EQUAL(r, 1);
+	EX_ASSERT_EQUAL_INT(r, 1);
 	r = dagdb_trie_insert(dagdb_root(), el3); // checking duplicate inserts.
-	CU_ASSERT_EQUAL(r, 0);
+	EX_ASSERT_EQUAL_INT(r, 0);
 }
 
 static void test_find() {
 	dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1);
 	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
-	CU_ASSERT_EQUAL(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_element_data(el1), 1u);
-	CU_ASSERT_EQUAL(dagdb_element_backref(el1), 2u);
-	CU_ASSERT_EQUAL(dagdb_element_data(el2), 3u);
-	CU_ASSERT_EQUAL(dagdb_element_backref(el2), 4u);
-	CU_ASSERT_EQUAL(dagdb_trie_find(dagdb_root(), key3), 0u); // fail on empty spot
-	CU_ASSERT_EQUAL(dagdb_trie_find(dagdb_root(), key4), 0u); // fail on key mismatch.
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_element_data(el1), 1u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el1), 2u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_data(el2), 3u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el2), 4u);
+	EX_ASSERT_EQUAL_INT(dagdb_trie_find(dagdb_root(), key3), 0u); // fail on empty spot
+	EX_ASSERT_EQUAL_INT(dagdb_trie_find(dagdb_root(), key4), 0u); // fail on key mismatch.
 }
 
 static void test_remove() {
 	int r;
 	r = dagdb_trie_remove(dagdb_root(), key1);
-	CU_ASSERT_EQUAL(r, 1);
+	EX_ASSERT_EQUAL_INT(r, 1);
 	r = dagdb_trie_remove(dagdb_root(), key1);
-	CU_ASSERT_EQUAL(r, 0);
+	EX_ASSERT_EQUAL_INT(r, 0);
 	r = dagdb_trie_remove(dagdb_root(), key3);
-	CU_ASSERT_EQUAL(r, 0);
+	EX_ASSERT_EQUAL_INT(r, 0);
 	r = dagdb_trie_remove(dagdb_root(), key4);
-	CU_ASSERT_EQUAL(r, 0);
+	EX_ASSERT_EQUAL_INT(r, 0);
 
 	dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1);
-	CU_ASSERT_EQUAL(el1, 0u);
+	EX_ASSERT_EQUAL_INT(el1, 0u);
 
 	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
-	CU_ASSERT_EQUAL(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
-	CU_ASSERT_EQUAL(dagdb_element_data(el2), 3u);
-	CU_ASSERT_EQUAL(dagdb_element_backref(el2), 4u);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_element_data(el2), 3u);
+	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el2), 4u);
 
 	r = dagdb_trie_remove(dagdb_root(), key2);
-	CU_ASSERT_EQUAL(r, 1);
+	EX_ASSERT_EQUAL_INT(r, 1);
 	el2 = dagdb_trie_find(dagdb_root(), key2);
-	CU_ASSERT_EQUAL(el2, 0u);
+	EX_ASSERT_EQUAL_INT(el2, 0u);
 }
 
 static void test_trie_kvpair() {
 	int r;
 	dagdb_pointer el = dagdb_element_create(key1, 1, 2);
-	CU_ASSERT_EQUAL(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
 	dagdb_pointer kv = dagdb_kvpair_create(el, 3);
-	CU_ASSERT_EQUAL(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
+	EX_ASSERT_EQUAL_INT(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
 	
 	r = dagdb_trie_insert(dagdb_root(), kv);
-	CU_ASSERT_EQUAL(r, 1);
+	EX_ASSERT_EQUAL_INT(r, 1);
 	r = dagdb_trie_insert(dagdb_root(), el);
-	CU_ASSERT_EQUAL(r, 0);
+	EX_ASSERT_EQUAL_INT(r, 0);
 
-	CU_ASSERT_EQUAL(dagdb_trie_find(dagdb_root(), key1), kv);
+	EX_ASSERT_EQUAL_INT(dagdb_trie_find(dagdb_root(), key1), kv);
 
 	r = dagdb_trie_remove(dagdb_root(), key1);
-	CU_ASSERT_EQUAL(r, 1);
-	CU_ASSERT_EQUAL(dagdb_kvpair_key(kv), el);
-	CU_ASSERT_EQUAL(dagdb_kvpair_value(kv), 3u);
+	EX_ASSERT_EQUAL_INT(r, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_kvpair_key(kv), el);
+	EX_ASSERT_EQUAL_INT(dagdb_kvpair_value(kv), 3u);
 	dagdb_element_delete(el);
 }
 

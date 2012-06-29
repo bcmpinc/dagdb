@@ -297,26 +297,49 @@ static void dagdb_chunk_remove(dagdb_pointer location) {
  * TODO (high): let all uses of this function check the return value.
  */
 static dagdb_pointer dagdb_malloc(dagdb_size length) {
-	dagdb_pointer r = global.size;
-	dagdb_size new_size = global.size + dagdb_round_up(length);
-	if (new_size > MAX_SIZE) {
-		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
-		dagdb_report("Cannot enlarge database of %lub with %lub beyond hardcoded limit of %u bytes", global.size, length, MAX_SIZE);
-		return 0;
-	}
+	// Traverse the free chunk table, to find an empty spot in one of the already existing slabs.
 	if (length > MAX_CHUNK_SIZE) {
 		dagdb_errno = DAGDB_ERROR_BAD_ARGUMENT;
 		dagdb_report("Cannot allocate %lub, which is larger than the maximum %lub.", length, MAX_CHUNK_SIZE);
 		return 0;
 	}
-	if (ftruncate(global.database_fd, new_size)) {
-		dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
-		dagdb_report_p("Failed to grow database file");
-		return 0;
+	
+	int_fast32_t id = alloc_chunk_id(length);
+	FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
+	while (m->next == m->prev && ++id < CHUNK_TABLE_SIZE) {
+		m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
 	}
-	global.size = new_size;
-	assert((r&DAGDB_TYPE_MASK) == 0);
-	return r;
+	
+	if (id < CHUNK_TABLE_SIZE) {
+		// There is a sufficiently large chunk available.
+		dagdb_pointer r = m->next;
+		dagdb_chunk_remove(r);
+		// TODO (very high): add remaining part of chunk back into free chunk table.
+		
+		return r;
+	} else {
+		// Allocate the memory in a newly created slab.
+		dagdb_pointer r = global.size;
+		assert((r % SLAB_SIZE) == 0);
+		dagdb_size new_size = global.size + SLAB_SIZE;
+		if (new_size > MAX_SIZE) {
+			dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
+			dagdb_report("Cannot enlarge database of %lub with %ub beyond hard coded limit of %u bytes", global.size, SLAB_SIZE, MAX_SIZE);
+			return 0;
+		}
+		if (ftruncate(global.database_fd, new_size)) {
+			dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
+			dagdb_report_p("Failed to grow database file to %lub", new_size);
+			return 0;
+		}
+		global.size = new_size;
+		
+		// Insert the unused part of the slab in the free chunk table.
+		length = dagdb_round_up(length);
+		dagdb_chunk_insert(r+length, SLAB_USEABLE_SPACE_SIZE-length);
+		
+		return r;
+	}
 }
 STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);
 
@@ -324,6 +347,7 @@ STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);
  * Enlarges or shrinks the provided memory such that its size is the given amount of bytes.
  * If the current data must be moved to a different location, this function will perform that move.
  * Note that the new allocated memory might be at a different location (even if shrinking).
+ * When growing, the newly allocated bits remain uninitialized.
  * TODO (high): unimplemented / implement realloc
  */
 static dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_size newlength) {
