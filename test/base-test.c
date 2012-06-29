@@ -39,6 +39,25 @@
 #define PRINT_ERROR_IF_ANY if(dagdb_errno>0){fflush(stdout); fprintf(stderr,"\nerror %d: %s\n", dagdb_errno, dagdb_last_error()); dagdb_errno=0; fflush(stderr);}
 #define CLEAR_ERROR dagdb_errno=0;
 
+/**
+ * Verifies that all linked lists in the free chunk table are properly linked.
+ * These lists are cyclic, hence the 'last' element in the list is also the element we start with:
+ * the element that is in the free chunk table.
+ */
+static void verify_chunk_table() {
+	int_fast32_t i;
+	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
+		dagdb_pointer list = CHUNK_TABLE_LOCATION(i);
+		dagdb_pointer current = list;
+		do {
+			dagdb_pointer next = LOCATE(FreeMemoryChunk, current)->next;
+			CU_ASSERT(current < global.size);
+			CU_ASSERT_EQUAL(current, LOCATE(FreeMemoryChunk, next)->prev);
+		} while (current>=HEADER_SIZE);
+		CU_ASSERT_EQUAL(current, list);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static void print_info() {
@@ -147,7 +166,8 @@ static CU_TestInfo test_loading[] = {
 
 static void test_mem_initial() {
 	CU_ASSERT_EQUAL(global.size, SLAB_SIZE);
-	// TODO: add test that checks memory usage & bitmap of first chunk.
+	verify_chunk_table();
+	// TODO: add test that checks memory usage & bitmap of first slab.
 }
 
 static void test_mem_grow_much() {

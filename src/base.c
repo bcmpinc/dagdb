@@ -74,8 +74,8 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * Returns a pointer of type 'type', pointing to the given location in the database file.
  * Also handles stripping off the pointer's type information.
  */
+#define LOCATE(type,location) ((type*)(assert(global.file!=MAP_FAILED),global.file+(location&~DAGDB_TYPE_MASK)))
 
-#define LOCATE(type,location) (type*)(assert(global.file!=MAP_FAILED),global.file+(location&~DAGDB_TYPE_MASK))
 /**
  * The amount of space (in bytes) reserved for the database header. 
  */
@@ -195,6 +195,8 @@ inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
  */
 #define BITMAP_SIZE ((SLAB_SIZE*BITS_PER_BYTE) / (S*BITS_PER_BYTE+1))
 
+#define CHUNK_TABLE_LOCATION(id) ((dagdb_pointer)&(((Header*)0)->chunks[id]))
+
 /**
  * Integer type used to store the bitmap.
  */
@@ -209,6 +211,16 @@ typedef struct {
 } MemorySlab;
 STATIC_ASSERT(sizeof(MemorySlab) <= SLAB_SIZE, memory_slab_fits_in_a_slab);
 STATIC_ASSERT(sizeof(MemorySlab) > SLAB_SIZE - 2*S, memory_slab_does_not_waste_too_much);
+#define SLAB_USEABLE_SPACE_SIZE sizeof(((MemorySlab*)0)->data)
+
+/**
+ * Rounds up the given argument to an allocatable size.
+ * This is either the smallest allocatable size or a multiple of S.
+ */
+dagdb_size dagdb_round_up(dagdb_size v) {
+	if (v<sizeof(FreeMemoryChunk)) return sizeof(FreeMemoryChunk);
+	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
+}
 
 /**
  * Computes the log2 of an 32-bit integer.
@@ -247,12 +259,31 @@ static int_fast32_t alloc_chunk_id(uint_fast32_t v) {
 }
 
 /**
- * Rounds up the given argument to an allocatable size.
- * This is either the smallest allocatable size or a multiple of S.
+ * Inserts the given chunk into the free chunk linked list table.
  */
-dagdb_size dagdb_round_up(dagdb_size v) {
-	if (v<sizeof(FreeMemoryChunk)) return sizeof(FreeMemoryChunk);
-	return  -(~(sizeof(dagdb_pointer) - 1) & -v);
+static void dagdb_chunk_insert(dagdb_pointer location, int_fast32_t size) {
+	assert(size>=sizeof(FreeMemoryChunk));
+	assert(location==dagdb_round_up(location));
+	assert(location>=HEADER_SIZE);
+	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
+	int_fast32_t id = free_chunk_id(size);
+	assert(id>=0 && id<CHUNK_TABLE_SIZE);
+	dagdb_pointer table = CHUNK_TABLE_LOCATION(id);
+	FreeMemoryChunk * n = LOCATE(FreeMemoryChunk, location);
+	FreeMemoryChunk * t = LOCATE(FreeMemoryChunk, table);
+	n->prev = table;
+	n->next = t->next;
+	t->next = location;
+}
+
+/**
+ * Removes the given chunk from its linked list.
+ */
+static void dagdb_chunk_remove(dagdb_pointer location) {
+	FreeMemoryChunk * c = LOCATE(FreeMemoryChunk, location);
+	LOCATE(FreeMemoryChunk,c->next)->prev = c->prev;
+	LOCATE(FreeMemoryChunk,c->prev)->next = c->next;
+	c->prev = c->next = 0;
 }
 
 /**
@@ -311,6 +342,27 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 //////////////////////
 
 /**
+ * Fills the header of the database with the necessary default information.
+ */
+static void dagdb_initialize_header(Header* h) {
+	h->magic = DAGDB_MAGIC;
+	h->format_version = FORMAT_VERSION;
+	
+	// Self-link all items in the free chunk table.
+	int_fast32_t i;
+	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
+		h->chunks[i].prev = 
+		h->chunks[i].next = CHUNK_TABLE_LOCATION(i);
+	}
+	
+	// Insert the unused part of the slab in the free chunk table.
+	dagdb_chunk_insert(HEADER_SIZE, SLAB_USEABLE_SPACE_SIZE-HEADER_SIZE);
+	
+	// Create the root trie.
+	h->root=dagdb_trie_create();
+}
+
+/**
  * Opens the given file. Creates it if it does not yet exist.
  * @returns 0 if succesfull.
  * TODO (high): give more information in case of error.
@@ -352,10 +404,8 @@ int dagdb_load(const char *database) {
 			dagdb_report_p("Could not allocate %db diskspace for database", SLAB_SIZE);
 			goto error;
 		}
-		h->magic=DAGDB_MAGIC;
-		h->format_version=FORMAT_VERSION;
 		global.size = SLAB_SIZE;
-		h->root=dagdb_trie_create();
+		dagdb_initialize_header(h);
 	} else {
 		// Check headers.
 		if(h->magic!=DAGDB_MAGIC) {
