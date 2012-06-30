@@ -290,6 +290,7 @@ static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
 	t->next = location;
 	if (size>=sizeof(FreeMemoryChunk)) {
 		n->size = size;
+		*LOCATE(dagdb_size, location + size - S) = size; // Also write the length of the chunk at the end.
 	}
 }
 
@@ -377,6 +378,7 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 		dagdb_chunk_remove(r);
 		m = LOCATE(FreeMemoryChunk, r);
 		assert(id==0 || free_chunk_id(m->size)==id);
+		assert(id==0 || m->size==*LOCATE(dagdb_size,r+m->size-S));
 		if (id > 0 && m->size-length>=MIN_CHUNK_SIZE) {
 			dagdb_chunk_insert(r+length, m->size-length);
 		}
