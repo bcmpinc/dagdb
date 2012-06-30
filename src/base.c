@@ -276,7 +276,7 @@ static int_fast32_t alloc_chunk_id(uint_fast32_t v) {
  * Inserts the given chunk into the free chunk linked list table.
  */
 static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
-	assert(size>=sizeof(FreeMemoryChunk));
+	assert(size>=MIN_CHUNK_SIZE);
 	assert(location%S==0);
 	assert(location>=HEADER_SIZE);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
@@ -326,18 +326,19 @@ static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast3
 	assert(value==0 || value==1);
 	assert(location%S==0);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
-	dagdb_pointer base = location & (SLAB_SIZE-1);
+	int_fast32_t offset = location & (SLAB_SIZE-1);
+	dagdb_pointer base = location-offset;
 	MemorySlab * s = LOCATE(MemorySlab, base);
-	int_fast32_t offset = (location-base)/S;
 	int_fast32_t len = dagdb_round_up(size)/S;
-	// BITMAP_MASK_APPLY( location in array, mask end - mask start)
+	offset /= S;
+	// dagdb_bitmap_mask_apply(s, location in array, mask end - mask start, value)
 	// all bits: 0 - 1 
-	if (offset%B+len <= B) {
-		dagdb_bitmap_mask_apply(s, offset/B, (1<<(offset%B+len))-(1<<offset%B), value);
+	if (offset%B+len < B) {
+		dagdb_bitmap_mask_apply(s, offset/B, (1UL<<(offset%B+len))-(1UL<<offset%B), value);
 	} else {
-		dagdb_bitmap_mask_apply(s, offset/B, 0-(1<<offset%B), value);
+		dagdb_bitmap_mask_apply(s, offset/B, 0UL-(1UL<<offset%B), value);
 		if ((offset+len)%B>0) 
-			dagdb_bitmap_mask_apply(s, (offset+len)/B, (1<<(offset+len)%B)-1, value);
+			dagdb_bitmap_mask_apply(s, (offset+len)/B, (1UL<<(offset+len)%B)-1UL, value);
 		int_fast32_t i;
 		for (i=offset/B+1; i<(offset+len)/B; i++) {
 			dagdb_bitmap_mask_apply(s, i, -1, value);
@@ -367,17 +368,21 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 		m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
 	}
 	
+	dagdb_pointer r;
+	length = dagdb_round_up(length);
 	if (id < CHUNK_TABLE_SIZE) {
 		// There is a sufficiently large chunk available.
-		dagdb_pointer r = m->next;
+		r = m->next;
 		dagdb_chunk_remove(r);
-		// TODO (very high): add remaining part of chunk back into free chunk table.
-		
-		return r;
+		m = LOCATE(FreeMemoryChunk, r);
+		assert(free_chunk_id(m->size)==id);
+		if (id > 0 && m->size-length>=MIN_CHUNK_SIZE) {
+			dagdb_chunk_insert(r+length, m->size-length);
+		}
 	} else {
 		// Allocate the memory in a newly created slab.
-		dagdb_pointer r = global.size;
-		assert((r % SLAB_SIZE) == 0);
+		r = global.size;
+		assert((global.size % SLAB_SIZE) == 0);
 		dagdb_size new_size = global.size + SLAB_SIZE;
 		if (new_size > MAX_SIZE) {
 			dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
@@ -392,11 +397,12 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 		global.size = new_size;
 		
 		// Insert the unused part of the slab in the free chunk table.
-		length = dagdb_round_up(length);
 		dagdb_chunk_insert(r+length, SLAB_USEABLE_SPACE_SIZE-length);
-		
-		return r;
 	}
+	assert((r % S) == 0);
+	// Mark the bitmap.
+	dagdb_bitmap_mark(r,length,1);
+	return r;
 }
 STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);
 
