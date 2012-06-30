@@ -373,9 +373,10 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 	if (id < CHUNK_TABLE_SIZE) {
 		// There is a sufficiently large chunk available.
 		r = m->next;
+		assert(r>=HEADER_SIZE);
 		dagdb_chunk_remove(r);
 		m = LOCATE(FreeMemoryChunk, r);
-		assert(free_chunk_id(m->size)==id);
+		assert(id==0 || free_chunk_id(m->size)==id);
 		if (id > 0 && m->size-length>=MIN_CHUNK_SIZE) {
 			dagdb_chunk_insert(r+length, m->size-length);
 		}
@@ -421,7 +422,8 @@ static dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength,
  * Frees the provided memory.
  * Currently only zero's out the memory range.
  * This function also strips off the type information before freeing.
- * TODO (high): add to memory pool & truncate file if possible.
+ * TODO (high): merge subsequent free chunks.
+ * TODO (high): truncate file if possible.
  */
 static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Strip type information
@@ -431,6 +433,12 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	assert(location+length<=global.size);
 	// Clear memory
 	memset(global.file + location, 0, dagdb_round_up(length));
+	
+	// Free range in bitmap.
+	dagdb_bitmap_mark(location, length, 0);
+	
+	// Add chunk to free chunk table.
+	dagdb_chunk_insert(location, length);
 }
 
 

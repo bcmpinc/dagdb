@@ -43,7 +43,7 @@
 	snprintf(msg,512, #name "(%s, %s) = " #name "("fmt", "fmt")", #actual, #expected, a, e); \
 	CU_assertImplementation(a==e, __LINE__, msg, __FILE__, "", CU_FALSE); \
 }
-#define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(expected, actual, int, "%d", EX_ASSERT_EQUAL_INT)
+#define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(actual, expected, int, "%d", EX_ASSERT_EQUAL_INT)
 #define EX_ASSERT_ERROR(expected) {\
 	char msg[512];\
 	snprintf(msg,512, "CHECK_ERROR(%s), got %d: %s", #expected, dagdb_errno, dagdb_last_error()); \
@@ -253,7 +253,6 @@ static void test_data() {
 	EX_ASSERT_EQUAL_INT(dagdb_data_length(p), len);
 	CU_ASSERT_NSTRING_EQUAL((const char *) dagdb_data_read(p), data, len);
 	dagdb_data_delete(p);
-	EX_ASSERT_EQUAL_INT(dagdb_data_length(p), 0u); // UNDEFINED BEHAVIOR
 }
 
 static void test_element() {
