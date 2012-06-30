@@ -58,6 +58,35 @@
 }
 
 /**
+ * Set or unset the usage flag of the given range in a slab's bitmap.
+ */
+#define BITMAP_CHECK(s, i, M, v) { bitmap_base_type m=(M); if ((s->bitmap[(i)]&m)!=m*value) return 0; }
+static int check_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
+	assert(value==0 || value==1);
+	assert(location%S==0);
+	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
+	int_fast32_t offset = location & (SLAB_SIZE-1);
+	dagdb_pointer base = location-offset;
+	MemorySlab * s = LOCATE(MemorySlab, base);
+	int_fast32_t len = dagdb_round_up(size)/S;
+	offset /= S;
+	// dagdb_bitmap_mask_apply(s, location in array, mask end - mask start, value)
+	// all bits: 0 - 1 
+	if (offset%B+len < B) {
+		BITMAP_CHECK(s, offset/B, (1UL<<(offset%B+len))-(1UL<<offset%B), value);
+	} else {
+		BITMAP_CHECK(s, offset/B, 0UL-(1UL<<offset%B), value);
+		if ((offset+len)%B>0) 
+			BITMAP_CHECK(s, (offset+len)/B, (1UL<<(offset+len)%B)-1UL, value);
+		int_fast32_t i;
+		for (i=offset/B+1; i<(offset+len)/B; i++) {
+			BITMAP_CHECK(s, i, -1, value);
+		}
+	}
+	return 1;
+}
+
+/**
  * Verifies that all linked lists in the free chunk table are properly linked.
  * These lists are cyclic, hence the 'last' element in the list is also the element we start with:
  * the element that is in the free chunk table.
@@ -68,9 +97,11 @@ static void verify_chunk_table() {
 		dagdb_pointer list = CHUNK_TABLE_LOCATION(i);
 		dagdb_pointer current = list;
 		do {
+			dagdb_size size = (i==0)?2*S:LOCATE(FreeMemoryChunk, current)->size;
 			dagdb_pointer next = LOCATE(FreeMemoryChunk, current)->next;
 			CU_ASSERT(current < global.size);
 			EX_ASSERT_EQUAL_INT(current, LOCATE(FreeMemoryChunk, next)->prev);
+			current = next;
 		} while (current>=HEADER_SIZE);
 		EX_ASSERT_EQUAL_INT(current, list);
 	}
@@ -212,14 +243,21 @@ static void test_mem_growing() {
 	int oldsize = global.size;
 	EX_ASSERT_NO_ERROR
 	const int ALLOC_SIZE = 2048;
-	const int N = SLAB_SIZE / ALLOC_SIZE;
+	
+	EX_ASSERT_EQUAL_INT(LOCATE(FreeMemoryChunk, HEADER_SIZE)->size, SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE);
+	
+	const int N = (SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE) / ALLOC_SIZE + 1;
 	dagdb_pointer p[N];
 	int i;
 	
 	// growing
 	for (i=0; i<N; i++) {
+		EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*ALLOC_SIZE);
 		p[i] = dagdb_malloc(ALLOC_SIZE); EX_ASSERT_NO_ERROR
 		CU_ASSERT_FATAL(p[i]>0);
+		*LOCATE(dagdb_pointer, p[i]) = 0xDEADBEEFF00D4A11L;
+		*LOCATE(dagdb_pointer, p[i]+S) = i;
+		*LOCATE(dagdb_pointer, p[i]+ALLOC_SIZE-S) = 0x123456789ABCDEF0L;
 	}
 	EX_ASSERT_EQUAL_INT(global.size, oldsize + SLAB_SIZE);
 	

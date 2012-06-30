@@ -74,7 +74,8 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * Returns a pointer of type 'type', pointing to the given location in the database file.
  * Also handles stripping off the pointer's type information.
  */
-#define LOCATE(type,location) ((type*)(assert(global.file!=MAP_FAILED),global.file+(location&~DAGDB_TYPE_MASK)))
+//#define LOCATE(type,location) ((type*)(assert(global.file!=MAP_FAILED),global.file+((location)&~DAGDB_TYPE_MASK)))
+#define LOCATE(type,location) ((type*)(global.file+((location)&~DAGDB_TYPE_MASK)))
 
 /**
  * The amount of space (in bytes) reserved for the database header. 
@@ -277,6 +278,7 @@ static int_fast32_t alloc_chunk_id(uint_fast32_t v) {
  */
 static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
 	assert(size>=MIN_CHUNK_SIZE);
+	assert(size<=SLAB_USEABLE_SPACE_SIZE);
 	assert(location%S==0);
 	assert(location>=HEADER_SIZE);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
@@ -285,9 +287,11 @@ static void dagdb_chunk_insert(dagdb_pointer location, dagdb_size size) {
 	dagdb_pointer table = CHUNK_TABLE_LOCATION(id);
 	FreeMemoryChunk * n = LOCATE(FreeMemoryChunk, location);
 	FreeMemoryChunk * t = LOCATE(FreeMemoryChunk, table);
+	FreeMemoryChunk * o = LOCATE(FreeMemoryChunk, t->next);
 	n->prev = table;
 	n->next = t->next;
 	t->next = location;
+	o->prev = location;
 	if (size>=sizeof(FreeMemoryChunk)) {
 		n->size = size;
 		*LOCATE(dagdb_size, location + size - S) = size; // Also write the length of the chunk at the end.
@@ -345,7 +349,6 @@ static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast3
 			dagdb_bitmap_mask_apply(s, i, -1, value);
 		}
 	}
-	
 }
 STATIC_ASSERT((SLAB_SIZE & (SLAB_SIZE-1)) == 0, slab_size_power_of_two);
 
@@ -365,7 +368,7 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 	
 	int_fast32_t id = alloc_chunk_id(length);
 	FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
-	while (m->next == m->prev && ++id < CHUNK_TABLE_SIZE) {
+	while (m->next < HEADER_SIZE && ++id < CHUNK_TABLE_SIZE) {
 		m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
 	}
 	
@@ -458,7 +461,9 @@ static void dagdb_initialize_header(Header* h) {
 	// Self-link all items in the free chunk table.
 	int_fast32_t i;
 	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
-		FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(i));
+		dagdb_pointer pos = CHUNK_TABLE_LOCATION(i);
+		assert(pos < HEADER_SIZE);
+		FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, pos);
 		m->prev = m->next = CHUNK_TABLE_LOCATION(i);
 	}
 	
@@ -468,8 +473,7 @@ static void dagdb_initialize_header(Header* h) {
 	// Mark header as used in bitmap
 	dagdb_bitmap_mark(0, HEADER_SIZE, 1);
 	
-	// Create the root trie.
-	h->root=dagdb_trie_create();
+	// TODO: create root trie here instead of lazily
 }
 
 /**
@@ -895,6 +899,11 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 dagdb_pointer dagdb_root()
 {
 	Header*  h = LOCATE(Header, 0);
+	// Lazily create root trie.
+	if (h->root==0) {
+		// Create the root trie.
+		h->root=dagdb_trie_create();
+	}
 	assert(h->root>=HEADER_SIZE);
 	return h->root;
 }
