@@ -64,11 +64,12 @@
 static int check_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
 	assert(value==0 || value==1);
 	assert(location%S==0);
+	assert(size%S==0);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
 	int_fast32_t offset = location & (SLAB_SIZE-1);
 	dagdb_pointer base = location-offset;
 	MemorySlab * s = LOCATE(MemorySlab, base);
-	int_fast32_t len = dagdb_round_up(size)/S;
+	int_fast32_t len = size/S;
 	offset /= S;
 	// dagdb_bitmap_mask_apply(s, location in array, mask end - mask start, value)
 	// all bits: 0 - 1 
@@ -100,7 +101,22 @@ static void verify_chunk_table() {
 			dagdb_size size = (i==0)?2*S:LOCATE(FreeMemoryChunk, current)->size;
 			dagdb_pointer next = LOCATE(FreeMemoryChunk, current)->next;
 			CU_ASSERT(current < global.size);
+			
+			// Check that the prev pointer of the next chunk points to current.
 			EX_ASSERT_EQUAL_INT(current, LOCATE(FreeMemoryChunk, next)->prev);
+			
+			if (current>=HEADER_SIZE) {
+				// Check that the bithe map matches.
+				CU_ASSERT(check_bitmap_mark(current, size,0));
+				// There should not be any additional free space left and right of a free chunk.
+				printf("\n%ld %ld %lx\n", current, size, SLAB_USEABLE_SPACE_SIZE+current/B);
+				if (current%SLAB_SIZE > 0)
+					CU_ASSERT(check_bitmap_mark(current-S, S,1));
+				if ((current+size)%SLAB_SIZE < SLAB_USEABLE_SPACE_SIZE)
+					CU_ASSERT(check_bitmap_mark(current+size, S,1));
+			}
+			
+			// Advance
 			current = next;
 		} while (current>=HEADER_SIZE);
 		EX_ASSERT_EQUAL_INT(current, list);
