@@ -106,10 +106,12 @@ static void verify_chunk_table() {
 			EX_ASSERT_EQUAL_INT(current, LOCATE(FreeMemoryChunk, next)->prev);
 			
 			if (current>=HEADER_SIZE) {
-				// Check that the bithe map matches.
+				// Check that the chunk size is also stored at the end of the chunk
+				assert(i==0 || size==*LOCATE(dagdb_size, current + size - S));
+				
+				// Check that the bitmap matches.
 				CU_ASSERT(check_bitmap_mark(current, size,0));
 				// There should not be any additional free space left and right of a free chunk.
-				printf("\n%ld %ld %lx\n", current, size, SLAB_USEABLE_SPACE_SIZE+current/B);
 				if (current%SLAB_SIZE > 0)
 					CU_ASSERT(check_bitmap_mark(current-S, S,1));
 				if ((current+size)%SLAB_SIZE < SLAB_USEABLE_SPACE_SIZE)
@@ -282,6 +284,8 @@ static void test_mem_growing() {
 		dagdb_free(p[i], ALLOC_SIZE); 
 	}
 	EX_ASSERT_EQUAL_INT(global.size, oldsize);
+	
+	verify_chunk_table();
 }
 
 static CU_TestInfo test_mem[] = {

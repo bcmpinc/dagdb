@@ -366,6 +366,7 @@ static dagdb_pointer dagdb_malloc(dagdb_size length) {
 		return 0;
 	}
 	
+	// Lookup a sufficiently large chunk in the free chunk table.
 	int_fast32_t id = alloc_chunk_id(length);
 	FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, CHUNK_TABLE_LOCATION(id));
 	while (m->next < HEADER_SIZE && ++id < CHUNK_TABLE_SIZE) {
@@ -423,6 +424,8 @@ static dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength,
 	return 0;
 }
 
+#define CHECK_BIT(a) (((a)<0) || ((a)>=BITMAP_SIZE) || (slab->bitmap[(a)/B] & (1<<((a)%B))))
+
 /**
  * Frees the provided memory.
  * Currently only zero's out the memory range.
@@ -436,14 +439,77 @@ static void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Do sanity checks
 	assert(location>=HEADER_SIZE);
 	assert(location+length<=global.size);
+	assert(location % SLAB_SIZE + length <= SLAB_USEABLE_SPACE_SIZE);
 	// Clear memory
+	length = dagdb_round_up(length);
 	memset(global.file + location, 0, dagdb_round_up(length));
 	
 	// Free range in bitmap.
 	dagdb_bitmap_mark(location, length, 0);
 	
+	int_fast32_t bit, size;
+	// Check for free chunk left.
+	MemorySlab * slab = LOCATE(MemorySlab, location & ~(SLAB_SIZE-1));
+	bit = (location % SLAB_SIZE)/S;
+	size = 0;
+	if (!CHECK_BIT(bit-1)) {
+		if (!CHECK_BIT(bit-2)) {
+			if (!CHECK_BIT(bit-3)) {
+				size = *LOCATE(dagdb_size, location - S);
+				assert(size>=3*S);
+				assert(size<=location%SLAB_SIZE);
+				assert(size==*LOCATE(dagdb_size, location - size + 2*S));
+			} else {
+				size = 2*S;
+			}
+			dagdb_chunk_remove(location - size);
+		} else {
+			size = S;
+		}
+	}
+	location -= size;
+	length += size;
+
+	// Check for free chunk right.
+	bit = (location % SLAB_SIZE + length)/S;
+	size = 0;
+	if (!CHECK_BIT(bit)) {
+		if (!CHECK_BIT(bit+1)) {
+			if (!CHECK_BIT(bit+2)) {
+				size = LOCATE(FreeMemoryChunk, location + length)->size;
+				assert(size>=3*S);
+				assert(location%SLAB_SIZE + length + size<=SLAB_USEABLE_SPACE_SIZE);
+				assert(size==*LOCATE(dagdb_size, location + length + size - S));
+			} else {
+				size = 2*S;
+			}
+			dagdb_chunk_remove(location + length);
+		} else {
+			size = S;
+		}
+	}
+	length += size;
+
 	// Add chunk to free chunk table.
 	dagdb_chunk_insert(location, length);
+	
+	// Reduce file size if possible.
+	dagdb_size new_size = global.size;
+	while (SLAB_USEABLE_SPACE_SIZE == *LOCATE(dagdb_size, new_size - SLAB_SIZE + SLAB_USEABLE_SPACE_SIZE - S)) {
+		new_size -= SLAB_SIZE;
+		// Remove chunk from table.
+		dagdb_chunk_remove(new_size);
+	}
+	assert(new_size >= SLAB_SIZE);
+	assert(new_size <= global.size);
+	assert(new_size % SLAB_SIZE == 0);
+	if (new_size < global.size) {
+		if (ftruncate(global.database_fd, new_size)) {
+			dagdb_errno = DAGDB_ERROR_OTHER;
+			dagdb_report_p("Failed to shrink database file to %lub", new_size);
+		}
+		global.size = new_size;
+	}
 }
 
 
@@ -907,3 +973,4 @@ dagdb_pointer dagdb_root()
 	assert(h->root>=HEADER_SIZE);
 	return h->root;
 }
+
