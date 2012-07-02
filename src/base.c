@@ -26,29 +26,12 @@
 #include <errno.h>
 
 #include "base.h"
+#include "error.h"
 
 
 /////////////
 // Macro's //
 /////////////
-
-/**
- * Used to perform sanity checks during compilation.
- */
-#define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
-
-/**
- * Set a new error message.
- */
-#define dagdb_report(fmt, ...) snprintf(global.errormsg, sizeof(global.errormsg), "%s:" fmt ".", __func__, ##__VA_ARGS__);
-
-/**
- * Set a new error message using the description provided by the standard library.
- */
-#define dagdb_report_p(fmt, ...) do { \
-	int_fast32_t l = snprintf(global.errormsg, sizeof(global.errormsg), "%s:" fmt ":", __func__, ##__VA_ARGS__); \
-	strerror_r(errno, global.errormsg + l, sizeof(global.errormsg) - l); \
-} while(0)
 
 /**
  * The size of a dagdb_pointer or dagdb_size variable.
@@ -164,14 +147,7 @@ static struct {
 	 */
 	dagdb_size size;
 
-	/**
-	 * Buffer to contain error message.
-	 */
-	char errormsg[256];
-} global = {0, MAP_FAILED, 0, "dagdb: No error."};
-
-dagdb_error_code dagdb_errno;
-
+} global = {0, MAP_FAILED, 0};
 
 ///////////////////
 // Pointer types //
@@ -630,15 +606,6 @@ void dagdb_unload() {
 		//printf("Closed DB\n");
 	}
 }
-
-/**
- * Returns a pointer to the static buffer that contains an explanation for the most recent error.
- * If no error has happened, this still returns a pointer to a valid string.
- */
-const char* dagdb_last_error() {
-	return global.errormsg;
-}
-
 
 ////////////////
 // Data items //

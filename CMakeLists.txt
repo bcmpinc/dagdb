@@ -8,11 +8,15 @@ find_package(CUnit)
 
 set(lib_src
 	src/base.c
+	src/mem.c
+	src/error.c
 )
 
 set(test_src 
 	test/main.c 
 	test/base-test.c
+	test/mem-test.c
+	test/error-test.c
 )
 
 add_library(dagdb SHARED ${lib_src})

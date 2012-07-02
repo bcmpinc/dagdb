@@ -32,17 +32,6 @@ typedef enum {
 	DAGDB_TYPE_KVPAIR,
 } dagdb_pointer_type;
 
-typedef enum {
-	DAGDB_ERROR_NONE=0,
-	DAGDB_ERROR_OTHER,
-	DAGDB_ERROR_BAD_ARGUMENT,
-	DAGDB_ERROR_INVALID_DB,
-	DAGDB_ERROR_DB_TOO_LARGE,
-	DAGDB_ERROR_MAGIC,
-} dagdb_error_code;
-
-extern dagdb_error_code dagdb_errno;
-
 // Trie related
 dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
@@ -73,7 +62,5 @@ int           dagdb_load(const char * database);
 void          dagdb_unload();
 dagdb_pointer dagdb_root();
 dagdb_pointer_type dagdb_get_type(dagdb_pointer location);
-const char *  dagdb_last_error();
-
 
 #endif 

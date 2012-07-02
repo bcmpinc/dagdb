@@ -16,27 +16,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <CUnit/CUnit.h>
-#include <CUnit/Basic.h> 
+// include the entire file being tested.
+#include "../src/mem.c"
 
-/** @file
- * @brief Entry point of the unit tests.
- */
-extern CU_SuiteInfo error_suites[];
-extern CU_SuiteInfo mem_suites[];
-extern CU_SuiteInfo base_suites[];
+#include "cunit-extensions.h"
 
-int main(int argc, char **argv) {
-	printf("Testing DAGDB\n");
-	CU_initialize_registry();
-	//CU_basic_set_mode(CU_BRM_SILENT);
-	//CU_basic_set_mode(CU_BRM_NORMAL);
-	CU_basic_set_mode(CU_BRM_VERBOSE);
-	CU_register_suites(error_suites);
-	CU_register_suites(mem_suites);
-	CU_register_suites(base_suites);
-	CU_basic_run_tests();
-	CU_cleanup_registry();
-	return 0; // TODO change such that it is non-zero in case of a failing test.
-}
+CU_SuiteInfo mem_suites[] = {
+//	{ "mem-non-io",   NULL,        NULL,     test_non_io },
+//	{ "mem-loading",  NULL,        NULL,     test_loading },
+//	{ "mem-memory",   open_new_db, close_db, test_mem },
+	CU_SUITE_INFO_NULL,
+};
