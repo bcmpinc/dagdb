@@ -111,11 +111,6 @@ static void print_info() {
 	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), SLAB_SIZE - sizeof(MemorySlab));
 }
 
-static void test_no_error() {
-	EX_ASSERT_NO_ERROR
-	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
-}
-
 static void test_round_up() {
 	const dagdb_size L = MIN_CHUNK_SIZE;
 	EX_ASSERT_EQUAL_INT(dagdb_round_up(0), L);
@@ -176,7 +171,6 @@ static void test_nibble() {
 
 static CU_TestInfo test_non_io[] = {
   { "print_info", print_info }, 
-  { "no_errors", test_no_error },
   { "round_up", test_round_up },
   { "nibble", test_nibble },
   { "chunk_id", test_chunk_id },

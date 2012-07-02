@@ -17,8 +17,8 @@ typedef enum {
 
 extern dagdb_error_code dagdb_errno;
 
-void dagdb_report_int  (const char * function, const char * format, ...);
-void dagdb_report_p_int(const char * function, const char * format, ...);
+void dagdb_report_int  (const char * function, const char * format, ...) __attribute__ ((format (printf, 2, 3)));;
+void dagdb_report_p_int(const char * function, const char * format, ...) __attribute__ ((format (printf, 2, 3)));;
 const char * dagdb_last_error();
 
 #endif

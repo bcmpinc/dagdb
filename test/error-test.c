@@ -21,10 +21,17 @@
 
 #include "cunit-extensions.h"
 
+static void test_no_error() {
+	EX_ASSERT_NO_ERROR
+	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
+}
+
+static CU_TestInfo test_error[] = {
+  { "no_errors", test_no_error },
+  CU_TEST_INFO_NULL,
+};
 
 CU_SuiteInfo error_suites[] = {
-//	{ "mem-non-io",   NULL,        NULL,     test_non_io },
-//	{ "mem-loading",  NULL,        NULL,     test_loading },
-//	{ "mem-memory",   open_new_db, close_db, test_mem },
+	{ "error",   NULL,        NULL,     test_error },
 	CU_SUITE_INFO_NULL,
 };
