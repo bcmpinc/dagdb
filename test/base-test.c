@@ -18,9 +18,9 @@
 
 // include the entire file being tested.
 #include "../src/base.c"
+#include "mem-test.h"
 
 #include <string.h>
-#include <sys/stat.h>
 #include "cunit-extensions.h"
 
 /** \file
@@ -36,125 +36,8 @@
  * affected by bugs that can trigger later tests.
  */
 
-/**
- * Set or unset the usage flag of the given range in a slab's bitmap.
- */
-#define BITMAP_CHECK(s, i, M, v) { bitmap_base_type m=(M); if ((s->bitmap[(i)]&m)!=m*value) return 0; }
-static int check_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
-	assert(value==0 || value==1);
-	assert(location%S==0);
-	assert(size%S==0);
-	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
-	int_fast32_t offset = location & (SLAB_SIZE-1);
-	dagdb_pointer base = location-offset;
-	MemorySlab * s = LOCATE(MemorySlab, base);
-	int_fast32_t len = size/S;
-	offset /= S;
-	// dagdb_bitmap_mask_apply(s, location in array, mask end - mask start, value)
-	// all bits: 0 - 1 
-	if (offset%B+len < B) {
-		BITMAP_CHECK(s, offset/B, (1UL<<(offset%B+len))-(1UL<<offset%B), value);
-	} else {
-		BITMAP_CHECK(s, offset/B, 0UL-(1UL<<offset%B), value);
-		if ((offset+len)%B>0) 
-			BITMAP_CHECK(s, (offset+len)/B, (1UL<<(offset+len)%B)-1UL, value);
-		int_fast32_t i;
-		for (i=offset/B+1; i<(offset+len)/B; i++) {
-			BITMAP_CHECK(s, i, -1, value);
-		}
-	}
-	return 1;
-}
-
-/**
- * Verifies that all linked lists in the free chunk table are properly linked.
- * These lists are cyclic, hence the 'last' element in the list is also the element we start with:
- * the element that is in the free chunk table.
- */
-static void verify_chunk_table() {
-	int_fast32_t i;
-	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
-		dagdb_pointer list = CHUNK_TABLE_LOCATION(i);
-		dagdb_pointer current = list;
-		do {
-			dagdb_size size = (i==0)?2*S:LOCATE(FreeMemoryChunk, current)->size;
-			dagdb_pointer next = LOCATE(FreeMemoryChunk, current)->next;
-			CU_ASSERT(current < global.size);
-			
-			// Check that the prev pointer of the next chunk points to current.
-			EX_ASSERT_EQUAL_INT(current, LOCATE(FreeMemoryChunk, next)->prev);
-			
-			if (current>=HEADER_SIZE) {
-				// Check that the chunk size is also stored at the end of the chunk
-				assert(i==0 || size==*LOCATE(dagdb_size, current + size - S));
-				
-				// Check that the bitmap matches.
-				CU_ASSERT(check_bitmap_mark(current, size,0));
-				// There should not be any additional free space left and right of a free chunk.
-				if (current%SLAB_SIZE > 0)
-					CU_ASSERT(check_bitmap_mark(current-S, S,1));
-				if ((current+size)%SLAB_SIZE < SLAB_USEABLE_SPACE_SIZE)
-					CU_ASSERT(check_bitmap_mark(current+size, S,1));
-			}
-			
-			// Advance
-			current = next;
-		} while (current>=HEADER_SIZE);
-		EX_ASSERT_EQUAL_INT(current, list);
-	}
-}
 
 ///////////////////////////////////////////////////////////////////////////////
-
-static void print_info() {
-	MemorySlab a;
-	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), SLAB_SIZE - sizeof(MemorySlab));
-}
-
-static void test_round_up() {
-	const dagdb_size L = MIN_CHUNK_SIZE;
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(0), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(1), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(2), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(3), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(4), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+0), L);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+1), L+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+2), L+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+3), L+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(L+4), L+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(255), 256u);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(256), 256u);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(257), 256u+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(258), 256u+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(259), 256u+S);
-	EX_ASSERT_EQUAL_INT(dagdb_round_up(260), 256u+S);
-}
-
-static void test_chunk_id() {
-	int i;
-	for(i=1; i<10000; i++) {
-		if (free_chunk_id(i)==CHUNK_TABLE_SIZE-1) {
-			EX_ASSERT_EQUAL_INT(i, MAX_CHUNK_SIZE);
-			EX_ASSERT_EQUAL_INT(i%S, 0);
-			if (i!=MAX_CHUNK_SIZE) {
-				printf("\nMAX_CHUNK_SIZE should be %ld*S\n", i/S);
-			}
-			break;
-		}
-		// By allocating a chunk of a given size and then freeing it, we should not be able to increase the id.
-		// Additionally, freeing one byte less, should always yield a lower id.
-		if (free_chunk_id(i)>=alloc_chunk_id(i+1)) {
-			printf("\ni = %d\n", i);
-			CU_ASSERT_FALSE_FATAL(free_chunk_id(i)>=alloc_chunk_id(i+1));
-		}
-		// free_chunk_id must be monotonic.
-		if (free_chunk_id(i-1)>free_chunk_id(i)) {
-			printf("\ni = %d\n", i);
-			CU_ASSERT_FALSE_FATAL(free_chunk_id(i-1)>free_chunk_id(i));
-		}
-	}
-}
 
 static dagdb_key key0 = {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,0,0,0,0,0,0,0,0,0x37,0xe7,0x52,0x0f};
 static int nibbles[] = {
@@ -170,101 +53,7 @@ static void test_nibble() {
 }
 
 static CU_TestInfo test_non_io[] = {
-  { "print_info", print_info }, 
-  { "round_up", test_round_up },
   { "nibble", test_nibble },
-  { "chunk_id", test_chunk_id },
-  CU_TEST_INFO_NULL,
-};
-
-///////////////////////////////////////////////////////////////////////////////
-#define DB_FILENAME "test.dagdb"
-
-static void test_load_init() {
-	unlink(DB_FILENAME);
-	int r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR
-	CU_ASSERT(r == 0); 
-	dagdb_unload();
-}
-
-static void test_load_reload() {
-	int r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR
-	CU_ASSERT(r == 0); 
-	dagdb_unload();
-}
-
-static void test_superfluous_unload() {
-	dagdb_unload();
-}
-
-static void test_load_failure() {
-	unlink(DB_FILENAME);
-	int r = mkdir(DB_FILENAME,0700);
-	CU_ASSERT(r == 0); 
-	r = dagdb_load(DB_FILENAME);  
-	CU_ASSERT(r == -1); 
-	EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
-	dagdb_unload(); // <- again superfluous
-	rmdir(DB_FILENAME);
-}
-
-static CU_TestInfo test_loading[] = {
-  { "load_init", test_load_init },
-  { "load_reload", test_load_reload },
-  { "superfluous_unload", test_superfluous_unload },
-  { "load_failure", test_load_failure },
-  CU_TEST_INFO_NULL,
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
-static void test_mem_initial() {
-	EX_ASSERT_EQUAL_INT(global.size, SLAB_SIZE);
-	verify_chunk_table();
-	// TODO: add test that checks memory usage & bitmap of first slab.
-}
-
-static void test_mem_alloc_too_much() {
-	dagdb_pointer p = dagdb_malloc(MAX_CHUNK_SIZE + 1); 
-	EX_ASSERT_EQUAL_INT(p, 0);
-	EX_ASSERT_ERROR(DAGDB_ERROR_BAD_ARGUMENT); 
-}
-
-static void test_mem_growing() {
-	int oldsize = global.size;
-	EX_ASSERT_NO_ERROR
-	const int ALLOC_SIZE = 2048;
-	
-	EX_ASSERT_EQUAL_INT(LOCATE(FreeMemoryChunk, HEADER_SIZE)->size, SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE);
-	
-	const int N = (SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE) / ALLOC_SIZE + 1;
-	dagdb_pointer p[N];
-	int i;
-	
-	// growing
-	for (i=0; i<N; i++) {
-		EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*ALLOC_SIZE);
-		p[i] = dagdb_malloc(ALLOC_SIZE); EX_ASSERT_NO_ERROR
-		CU_ASSERT_FATAL(p[i]>0);
-		*LOCATE(dagdb_pointer, p[i]) = 0xDEADBEEFF00D4A11L;
-		*LOCATE(dagdb_pointer, p[i]+S) = i;
-		*LOCATE(dagdb_pointer, p[i]+ALLOC_SIZE-S) = 0x123456789ABCDEF0L;
-	}
-	EX_ASSERT_EQUAL_INT(global.size, oldsize + SLAB_SIZE);
-	
-	// shrinking
-	for (i=0; i<N; i++) {
-		dagdb_free(p[i], ALLOC_SIZE); 
-	}
-	EX_ASSERT_EQUAL_INT(global.size, oldsize);
-	
-	verify_chunk_table();
-}
-
-static CU_TestInfo test_mem[] = {
-  { "memory_initial", test_mem_initial },
-  { "memory_error_alloc", test_mem_alloc_too_much },
-  { "memory_growing", test_mem_growing },
   CU_TEST_INFO_NULL,
 };
 
@@ -427,20 +216,8 @@ static CU_TestInfo test_trie_io[] = {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static int open_new_db() {
-	unlink(DB_FILENAME);
-	return dagdb_load(DB_FILENAME);
-}
-
-static int close_db() {
-	dagdb_unload();
-	return 0;
-}
-
 CU_SuiteInfo base_suites[] = {
 	{ "base-non-io",   NULL,        NULL,     test_non_io },
-	{ "base-loading",  NULL,        NULL,     test_loading },
-	{ "base-memory",   open_new_db, close_db, test_mem },
 	{ "base-basic-io", open_new_db, close_db, test_basic_io },
 	{ "base-trie-io",  open_new_db, close_db, test_trie_io },
 	CU_SUITE_INFO_NULL,
