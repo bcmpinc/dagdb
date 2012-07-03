@@ -26,7 +26,7 @@
 
 #include "mem.h"
 #include "error.h"
-
+#include "bitarray.h"
 
 /////////////
 // Macro's //
@@ -132,16 +132,11 @@ static dagdb_size dagdb_database_size;
 #define CHUNK_TABLE_LOCATION(id) ((dagdb_pointer)&(((Header*)0)->chunks[2*(id)]))
 
 /**
- * Integer type used to store the bitmap.
- */
-typedef uint64_t bitmap_base_type;
-
-/**
  * A struct for the internal structure of a slab.
  */
 typedef struct {
 	dagdb_pointer data[BITMAP_SIZE];
-	bitmap_base_type bitmap[(BITMAP_SIZE+sizeof(bitmap_base_type)*8-1)/sizeof(bitmap_base_type)/8];
+	dagdb_bitarray bitmap[DAGDB_BITARRAY_ARRAY_SIZE(BITMAP_SIZE)];
 } MemorySlab;
 STATIC_ASSERT(sizeof(MemorySlab) <= SLAB_SIZE, memory_slab_fits_in_a_slab);
 STATIC_ASSERT(sizeof(MemorySlab) > SLAB_SIZE - 2*S, memory_slab_does_not_waste_too_much);
@@ -233,7 +228,7 @@ static void dagdb_chunk_remove(dagdb_pointer location) {
 /**
  * Sets or unsets bits in a given slab's bitmap.
  */
-static inline void dagdb_bitmap_mask_apply(MemorySlab * s, int_fast32_t i, bitmap_base_type m, int_fast32_t value) { 
+static inline void dagdb_bitmap_mask_apply(MemorySlab * s, int_fast32_t i, dagdb_bitarray m, int_fast32_t value) { 
 	if (value) { 
 		assert((s->bitmap[i]&m)==0); 
 		s->bitmap[i] |= m;
@@ -243,7 +238,7 @@ static inline void dagdb_bitmap_mask_apply(MemorySlab * s, int_fast32_t i, bitma
 	} 
 }
 
-#define B (sizeof(bitmap_base_type)*8)
+#define B (sizeof(dagdb_bitarray)*8)
 /**
  * Set or unset the usage flag of the given range in a slab's bitmap.
  */

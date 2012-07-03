@@ -38,7 +38,7 @@ int close_db() {
 /**
  * Set or unset the usage flag of the given range in a slab's bitmap.
  */
-#define BITMAP_CHECK(s, i, M, v) { bitmap_base_type m=(M); if ((s->bitmap[(i)]&m)!=m*value) return 0; }
+#define BITMAP_CHECK(s, i, M, v) { dagdb_bitarray m=(M); if ((s->bitmap[(i)]&m)!=m*value) return 0; }
 static int check_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
 	assert(value==0 || value==1);
 	assert(location%S==0);
@@ -307,7 +307,7 @@ static CU_TestInfo test_mem[] = {
   { "memory_growing", test_mem_growing },
   { "memory_shrinking", test_mem_shrinking },
   { "memory_shrinking_reverse", test_mem_shrinking_reverse },
-  //{ "memory_shrinking_2S", test_mem_shrinking_2S },
+  { "memory_shrinking_2S", test_mem_shrinking_2S },
   CU_TEST_INFO_NULL,
 };
 

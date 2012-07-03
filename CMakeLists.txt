@@ -7,12 +7,14 @@ find_package(Libgcrypt REQUIRED)
 find_package(CUnit)
 
 set(lib_src
+	src/bitarray.c
 	src/base.c
 	src/mem.c
 	src/error.c
 )
 
 set(test_src 
+	test/bitarray-test.c
 	test/main.c 
 	test/base-test.c
 	test/mem-test.c
