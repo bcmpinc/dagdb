@@ -1,6 +1,26 @@
-#ifndef DAGDB_TEST_CUNIT_H
-#define DAGDB_TEST_CUNIT_H
+/*
+    DagDB - A lightweight structured database system.
+    Copyright (C) 2012  B.J. Conijn <bcmpinc@users.sourceforge.net>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#ifndef DAGDB_TEST_H
+#define DAGDB_TEST_H
+
 #include <CUnit/CUnit.h>
+
 #define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
 	type a = (actual), e = (expected); \
 	char msg[512];\
@@ -20,4 +40,8 @@
 	CU_assertImplementation(dagdb_errno==DAGDB_ERROR_NONE, __LINE__, msg, __FILE__, "", CU_FALSE); \
 	dagdb_errno=DAGDB_ERROR_NONE; \
 }
-#endif
+
+int open_new_db();
+int close_db();
+void verify_chunk_table();
+#endif 

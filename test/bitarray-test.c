@@ -19,4 +19,4 @@
 // include the entire file being tested.
 #include "../src/bitarray.c"
 
-#include "cunit-extensions.h"
+#include "test.h"

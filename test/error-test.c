@@ -19,7 +19,7 @@
 // include the entire file being tested.
 #include "../src/error.c"
 
-#include "cunit-extensions.h"
+#include "test.h"
 
 static void test_no_error() {
 	EX_ASSERT_NO_ERROR

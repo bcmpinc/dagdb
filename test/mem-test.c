@@ -18,11 +18,10 @@
 
 // include the entire file being tested.
 #include "../src/mem.c"
-#include "mem-test.h"
 
 #include <sys/stat.h>
 #include <stdlib.h>
-#include "cunit-extensions.h"
+#include "test.h"
 
 #define DB_FILENAME "test.dagdb"
 int open_new_db() {

@@ -18,10 +18,9 @@
 
 // include the entire file being tested.
 #include "../src/base.c"
-#include "mem-test.h"
 
 #include <string.h>
-#include "cunit-extensions.h"
+#include "test.h"
 
 /** \file
  * Tests the I/O base system of DagDB.
