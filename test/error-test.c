@@ -26,9 +26,45 @@ static void test_no_error() {
 	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
 }
 
+static void test_p() {
+	errno = 12; // Cannot allocate memory error.
+	dagdb_report_p("%d %d", 25, 42);
+	CU_ASSERT(strstr(dagdb_last_error(),__func__)!=NULL);
+	CU_ASSERT(strstr(dagdb_last_error(),"25 42")!=NULL);
+	CU_ASSERT(strstr(dagdb_last_error(),"Cannot allocate memory")!=NULL);
+	errno = 0;
+}
+
+static void test_long_function() {
+	char fn[1024];
+	int i;
+	for(i=0; i<1000; i++) fn[i]='A';
+	fn[1000]=0;
+	
+	dagdb_report_int(fn, "%s %d", "test", 12345);
+	CU_ASSERT(strstr(dagdb_last_error(),"AAAAAAAAAA")!=NULL);
+	dagdb_report_p_int(fn, "%s %d", "test", 12345);
+	CU_ASSERT(strstr(dagdb_last_error(),"AAAAAAAAAA")!=NULL);
+}
+
+static void test_long_message() {
+	char b[128];
+	int i;
+	for(i=0; i<100; i++) b[i]='B';
+	b[100]=0;
+	
+	dagdb_report("%s %s %s %s %s %s %s %s", b, b, b, b, b, b, b, b);
+	CU_ASSERT(strstr(dagdb_last_error(),"BBBBBBBBBB BBBBBBBBBB")!=NULL);
+	dagdb_report_p("%s %s %s %s %s %s %s %s", b, b, b, b, b, b, b, b);
+	CU_ASSERT(strstr(dagdb_last_error(),"BBBBBBBBBB BBBBBBBBBB")!=NULL);
+}
+
 static CU_TestInfo test_error[] = {
-  { "no_errors", test_no_error },
-  CU_TEST_INFO_NULL,
+	{ "no_errors", test_no_error },
+	{ "perror", test_p },
+	{ "long_function", test_long_function },
+	{ "long_message", test_long_message },
+	CU_TEST_INFO_NULL,
 };
 
 CU_SuiteInfo error_suites[] = {
