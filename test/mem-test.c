@@ -307,7 +307,7 @@ static CU_TestInfo test_mem[] = {
   { "memory_growing", test_mem_growing },
   { "memory_shrinking", test_mem_shrinking },
   { "memory_shrinking_reverse", test_mem_shrinking_reverse },
-  { "memory_shrinking_2S", test_mem_shrinking_2S },
+  //{ "memory_shrinking_2S", test_mem_shrinking_2S },
   CU_TEST_INFO_NULL,
 };
 
