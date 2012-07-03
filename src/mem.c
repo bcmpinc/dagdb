@@ -226,20 +226,6 @@ static void dagdb_chunk_remove(dagdb_pointer location) {
 }
 
 /**
- * Sets or unsets bits in a given slab's bitmap.
- */
-static inline void dagdb_bitmap_mask_apply(MemorySlab * s, int_fast32_t i, dagdb_bitarray m, int_fast32_t value) { 
-	if (value) { 
-		assert((s->bitmap[i]&m)==0); 
-		s->bitmap[i] |= m;
-	} else { 
-		assert((s->bitmap[i]&m)==m); 
-		s->bitmap[i] &= ~m;
-	} 
-}
-
-#define B (sizeof(dagdb_bitarray)*8)
-/**
  * Set or unset the usage flag of the given range in a slab's bitmap.
  */
 static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32_t value) {
@@ -247,23 +233,8 @@ static void dagdb_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast3
 	assert(location%S==0);
 	assert(location%SLAB_SIZE + size <= SLAB_USEABLE_SPACE_SIZE);
 	int_fast32_t offset = location & (SLAB_SIZE-1);
-	dagdb_pointer base = location-offset;
-	MemorySlab * s = LOCATE(MemorySlab, base);
-	int_fast32_t len = dagdb_round_up(size)/S;
-	offset /= S;
-	// dagdb_bitmap_mask_apply(s, location in array, mask end - mask start, value)
-	// all bits: 0 - 1 
-	if (offset%B+len < B) {
-		dagdb_bitmap_mask_apply(s, offset/B, (1UL<<(offset%B+len))-(1UL<<offset%B), value);
-	} else {
-		dagdb_bitmap_mask_apply(s, offset/B, 0UL-(1UL<<offset%B), value);
-		if ((offset+len)%B>0) 
-			dagdb_bitmap_mask_apply(s, (offset+len)/B, (1UL<<(offset+len)%B)-1UL, value);
-		int_fast32_t i;
-		for (i=offset/B+1; i<(offset+len)/B; i++) {
-			dagdb_bitmap_mask_apply(s, i, -1, value);
-		}
-	}
+	MemorySlab * s = LOCATE(MemorySlab, location-offset);
+	(value?dagdb_bitarray_mark:dagdb_bitarray_unmark)(s->bitmap, offset/S, dagdb_round_up(size)/S);
 }
 STATIC_ASSERT((SLAB_SIZE & (SLAB_SIZE-1)) == 0, slab_size_power_of_two);
 
@@ -339,7 +310,7 @@ dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_
 	return 0;
 }
 
-#define CHECK_BIT(a) (((a)<0) || ((a)>=BITMAP_SIZE) || (slab->bitmap[(a)/B] & (1<<((a)%B))))
+#define CHECK_BIT(a) (((a)<0) || ((a)>=BITMAP_SIZE) || dagdb_bitarray_read(slab->bitmap,(a)))
 
 /**
  * Frees the provided memory.
