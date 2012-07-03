@@ -115,6 +115,7 @@ static CU_TestInfo test_basic_io[] = {
   { "element", test_element },
   { "kvpair", test_kvpair },
   { "trie", test_trie },
+  { "verify_chunk_table", verify_chunk_table },
   CU_TEST_INFO_NULL,
 };
 
@@ -202,6 +203,7 @@ static void test_trie_recursive_delete() {
 	dagdb_trie_insert(t, dagdb_element_create(key2, 1, 2));
 	dagdb_trie_insert(t, dagdb_element_create(key3, 1, 2));
 	dagdb_trie_insert(t, dagdb_element_create(key4, 1, 2));
+	verify_chunk_table();
 	dagdb_trie_delete(t);
 }
 
@@ -211,6 +213,7 @@ static CU_TestInfo test_trie_io[] = {
   { "remove", test_remove },
   { "kvpair", test_trie_kvpair },
   { "recursive_delete", test_trie_recursive_delete },
+  { "verify_chunk_table", verify_chunk_table },
   CU_TEST_INFO_NULL,
 };
 

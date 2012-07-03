@@ -21,6 +21,7 @@
 #include "mem-test.h"
 
 #include <sys/stat.h>
+#include <stdlib.h>
 #include "cunit-extensions.h"
 
 #define DB_FILENAME "test.dagdb"
@@ -69,7 +70,7 @@ static int check_bitmap_mark(dagdb_pointer location, dagdb_size size, int_fast32
  * These lists are cyclic, hence the 'last' element in the list is also the element we start with:
  * the element that is in the free chunk table.
  */
-static void verify_chunk_table() {
+void verify_chunk_table() {
 	int_fast32_t i;
 	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
 		dagdb_pointer list = CHUNK_TABLE_LOCATION(i);
@@ -213,41 +214,100 @@ static void test_mem_alloc_too_much() {
 	EX_ASSERT_ERROR(DAGDB_ERROR_BAD_ARGUMENT); 
 }
 
-static void test_mem_growing() {
-	int oldsize = dagdb_database_size;
+typedef struct {
+	int oldsize;
+	int alloc_size;
+	int n;
+	dagdb_pointer *p;
+} filler;
+
+static void filler_create(filler * f, int alloc_size) {
 	EX_ASSERT_NO_ERROR
-	const int ALLOC_SIZE = 2048;
-	
+	f->oldsize = dagdb_database_size;
+	f->alloc_size = alloc_size;
+
+	// Assume database is empty.
 	EX_ASSERT_EQUAL_INT(LOCATE(FreeMemoryChunk, HEADER_SIZE)->size, SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE);
 	
-	const int N = (SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE) / ALLOC_SIZE + 1;
-	dagdb_pointer p[N];
+	f->n = (SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE) / f->alloc_size + 1;
+	f->p = malloc(f->n * sizeof(dagdb_pointer));
+}
+
+static void filler_fill_normal(filler * f) {
 	int i;
-	
 	// growing
-	for (i=0; i<N; i++) {
-		EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*ALLOC_SIZE);
-		p[i] = dagdb_malloc(ALLOC_SIZE); EX_ASSERT_NO_ERROR
-		CU_ASSERT_FATAL(p[i]>0);
-		*LOCATE(dagdb_pointer, p[i]) = 0xDEADBEEFF00D4A11L;
-		*LOCATE(dagdb_pointer, p[i]+S) = i;
-		*LOCATE(dagdb_pointer, p[i]+ALLOC_SIZE-S) = 0x123456789ABCDEF0L;
+	for (i=0; i<f->n; i++) {
+		EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*f->alloc_size);
+		f->p[i] = dagdb_malloc(f->alloc_size); EX_ASSERT_NO_ERROR
+		CU_ASSERT_FATAL(f->p[i]>0);
 	}
-	EX_ASSERT_EQUAL_INT(dagdb_database_size, oldsize + SLAB_SIZE);
-	
-	// shrinking
-	for (i=0; i<N; i++) {
-		dagdb_free(p[i], ALLOC_SIZE); 
-	}
-	EX_ASSERT_EQUAL_INT(dagdb_database_size, oldsize);
-	
+	EX_ASSERT_EQUAL_INT(dagdb_database_size, f->oldsize + SLAB_SIZE);
 	verify_chunk_table();
+}
+
+static void filller_destroy(filler * f) {
+	free(f->p);
+	verify_chunk_table();
+}
+
+static void test_mem_growing() {
+	filler f;
+	filler_create(&f, 2048);
+	filler_fill_normal(&f);
+	filller_destroy(&f);
+	// Test does not cleanup database, hence replace it by a new one.
+	close_db(); open_new_db();
+}
+
+static void filler_shrink_normal(filler * f) {
+	int i;
+	for (i=0; i<f->n; i++) {
+		dagdb_free(f->p[i], f->alloc_size); 
+	}
+	EX_ASSERT_EQUAL_INT(dagdb_database_size, f->oldsize);
+}
+
+static void filler_shrink_reverse(filler * f) {
+	int i;
+	for (i=f->n-1; i>=0; i--) {
+		dagdb_free(f->p[i], f->alloc_size); 
+	}
+	EX_ASSERT_EQUAL_INT(dagdb_database_size, f->oldsize);
+}
+
+static void test_mem_shrinking() {
+	filler f;
+	filler_create(&f, 2048);
+	filler_fill_normal(&f);
+	filler_shrink_normal(&f);
+	filller_destroy(&f);
+}
+
+static void test_mem_shrinking_reverse() {
+	filler f;
+	filler_create(&f, 2048);
+	filler_fill_normal(&f);
+	filler_shrink_reverse(&f);
+	filller_destroy(&f);
+}
+
+static void test_mem_shrinking_2S() {
+	filler f;
+	filler_create(&f, 2*S);
+	filler_fill_normal(&f);
+	filler_shrink_normal(&f);
+	filler_fill_normal(&f);
+	filler_shrink_reverse(&f);
+	filller_destroy(&f);
 }
 
 static CU_TestInfo test_mem[] = {
   { "memory_initial", test_mem_initial },
   { "memory_error_alloc", test_mem_alloc_too_much },
   { "memory_growing", test_mem_growing },
+  { "memory_shrinking", test_mem_shrinking },
+  { "memory_shrinking_reverse", test_mem_shrinking_reverse },
+  { "memory_shrinking_2S", test_mem_shrinking_2S },
   CU_TEST_INFO_NULL,
 };
 
