@@ -20,6 +20,8 @@
 #define DAGDB_TEST_H
 
 #include <CUnit/CUnit.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
 	type a = (actual), e = (expected); \
@@ -28,6 +30,7 @@
 	CU_assertImplementation(a==e, __LINE__, msg, __FILE__, "", CU_FALSE); \
 }
 #define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(actual, expected, int, "%d", EX_ASSERT_EQUAL_INT)
+#define EX_ASSERT_EQUAL_LONG_HEX(actual, expected) EX_ASSERT_EQUAL(actual, expected, uint64_t, "%lx", EX_ASSERT_EQUAL_LONG_HEX)
 #define EX_ASSERT_ERROR(expected) {\
 	char msg[512];\
 	snprintf(msg,512, "CHECK_ERROR(%s), got %d: %s", #expected, dagdb_errno, dagdb_last_error()); \

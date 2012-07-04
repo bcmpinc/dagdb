@@ -23,7 +23,9 @@
 /** @file
  * @brief Entry point of the unit tests.
  */
+
 extern CU_SuiteInfo error_suites[];
+extern CU_SuiteInfo bitarray_suites[];
 extern CU_SuiteInfo mem_suites[];
 extern CU_SuiteInfo base_suites[];
 
@@ -34,9 +36,11 @@ int main(int argc, char **argv) {
 	//CU_basic_set_mode(CU_BRM_NORMAL);
 	CU_basic_set_mode(CU_BRM_VERBOSE);
 	CU_register_suites(error_suites);
+	CU_register_suites(bitarray_suites);
 	CU_register_suites(mem_suites);
 	CU_register_suites(base_suites);
 	CU_basic_run_tests();
+	int result = CU_get_number_of_tests_failed();
 	CU_cleanup_registry();
-	return 0; // TODO change such that it is non-zero in case of a failing test.
+	return result; // TODO change such that it is non-zero in case of a failing test.
 }

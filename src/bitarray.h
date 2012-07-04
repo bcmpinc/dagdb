@@ -29,6 +29,7 @@ typedef uint64_t dagdb_bitarray;
  * Computes the length for the dagdb_bitarray array given the number of bits it has to contain.
  */
 #define DAGDB_BITARRAY_ARRAY_SIZE(a) ((a-1)/sizeof(dagdb_bitarray)/8+1)
+
 void         dagdb_bitarray_mark  (dagdb_bitarray* bitarray, int_fast32_t start, int_fast32_t length);
 void         dagdb_bitarray_unmark(dagdb_bitarray* bitarray, int_fast32_t start, int_fast32_t length);
 void         dagdb_bitarray_flip  (dagdb_bitarray* bitarray, int_fast32_t start, int_fast32_t length);

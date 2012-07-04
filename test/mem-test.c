@@ -20,7 +20,6 @@
 #include "../src/mem.c"
 
 #include <sys/stat.h>
-#include <stdlib.h>
 #include "test.h"
 
 #define DB_FILENAME "test.dagdb"
