@@ -40,9 +40,6 @@ int_fast32_t dagdb_bitarray_check (dagdb_bitarray* bitarray, int_fast32_t start,
 int_fast32_t dagdb_bitarray_read  (dagdb_bitarray* bitarray, int_fast32_t pos);
 */
 
-static void test_read() {
-}
-
 static void test_mark() {
 	const int N = 32;
 	dagdb_bitarray b[N];
@@ -120,7 +117,33 @@ static void test_flip() {
 	EX_ASSERT_EQUAL_LONG_HEX(b[0], ~0xff00f08ffeUL);
 }
 
+static void test_read() {
+	dagdb_bitarray b[1];
+	b[0]=0;
+	dagdb_bitarray_mark(b,2,10); // 0000 1111 1111 1100
+	dagdb_bitarray_unmark(b,5,3);// 0000 1111 0001 1100
+	dagdb_bitarray_flip(b,3,8);  // 0000 1000 1110 0100
+	EX_ASSERT_EQUAL_LONG_HEX(b[0], 0x00000000000008e4UL);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x0)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x1)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x2)?1:0, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x3)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x4)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x5)?1:0, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x6)?1:0, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x7)?1:0, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x8)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0x9)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xa)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xb)?1:0, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xc)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xd)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xe)?1:0, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xf)?1:0, 0);
+}
+
 static void test_check() {
+	
 }
 
 static CU_TestInfo test_bitarrray[] = {
