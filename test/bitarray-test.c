@@ -142,8 +142,58 @@ static void test_read() {
 	EX_ASSERT_EQUAL_INT(dagdb_bitarray_read(b, 0xf)?1:0, 0);
 }
 
+
+#define SUBTEST_CHECK(s,l,v) \
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s    ,l/2,v),1);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s+l/2,l/2,v),1);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s    ,l-1,v),1);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s+1  ,l-1,v),1);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s    ,l  ,v),1);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s+1  ,l  ,v),0);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s    ,l+1,v),0);\
+	if (s>0) {\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s-1  ,l  ,v),0);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s-1  ,l+1,v),0);\
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,s-1  ,l+2,v),0);\
+	}
+
 static void test_check() {
-	
+	dagdb_bitarray b[] = {
+		0x00ff03ffc0f8007fUL, // 0
+		0x00000000ffffffffUL, // 1
+		0x0000000000000000UL, // 2
+		0xffffffff00000000UL, // 3
+		0xffffffffffffffffUL, // 4
+		0x80000000ffffffffUL, // 5
+		0x0000000000000000UL, // 6
+		0xffffffffffffffffUL, // 7
+		0x0000000000400000UL, // 8
+		0xfffffdffffffffffUL, // 9
+		0
+	};
+	SUBTEST_CHECK( 0, 7,1);
+	SUBTEST_CHECK( 7,12,0);
+	SUBTEST_CHECK(19, 5,1);
+	SUBTEST_CHECK(24, 6,0);
+	SUBTEST_CHECK(30,12,1);
+	SUBTEST_CHECK(42, 6,0);
+	SUBTEST_CHECK(48, 8,1);
+	SUBTEST_CHECK(56, 8,0);
+
+	SUBTEST_CHECK(1*B,32,1);
+	SUBTEST_CHECK(1*B+32,2*B,0);
+	SUBTEST_CHECK(3*B+32,2*B,1);
+	SUBTEST_CHECK(5*B+32,31,0);
+	SUBTEST_CHECK(5*B+63,1,1);
+	SUBTEST_CHECK(6*B,B,0);
+	SUBTEST_CHECK(7*B,B,1);
+
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,8*B  ,B  ,0),0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,9*B  ,B  ,1),0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,8*B  ,B-1,0),0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,9*B  ,B-1,1),0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,8*B+1,B-1,0),0);
+	EX_ASSERT_EQUAL_INT(dagdb_bitarray_check(b,9*B+1,B-1,1),0);
 }
 
 static CU_TestInfo test_bitarrray[] = {
