@@ -185,7 +185,10 @@ static CU_TestInfo test_loading[] = {
 static void test_mem_initial() {
 	EX_ASSERT_EQUAL_INT(dagdb_database_size, SLAB_SIZE);
 	verify_chunk_table();
-	// TODO: add test that checks memory usage & bitmap of first slab.
+	check_bitmap_mark(0,HEADER_SIZE,1);
+	check_bitmap_mark(HEADER_SIZE, SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE,0);
+	FreeMemoryChunk * c = LOCATE(FreeMemoryChunk, HEADER_SIZE);
+	EX_ASSERT_EQUAL_INT(c->size, SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE);
 }
 
 static void test_mem_alloc_too_much() {
