@@ -426,8 +426,6 @@ static void dagdb_initialize_header(Header* h) {
 	
 	// Mark header as used in bitmap
 	dagdb_bitmap_mark(0, HEADER_SIZE, 1);
-	
-	// TODO: create root trie here instead of lazily
 }
 
 /**

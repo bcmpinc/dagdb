@@ -267,8 +267,7 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 			return 0;
 		}
 	}
-	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
-	abort();
+	UNREACHABLE;
 }
 
 /**
@@ -320,9 +319,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 			t->entry[n] = pointer;
 		}
 	}
-	// TODO (low): migrate below to error.c
-	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
-	abort();
+	UNREACHABLE;
 }
 
 /**
@@ -360,8 +357,7 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 			return 0;
 		}
 	}
-	fprintf(stderr,"Unreachable state reached in '%s'\n", __func__);
-	abort();
+	UNREACHABLE;
 }
 
 dagdb_pointer dagdb_root()

@@ -5,6 +5,7 @@
 #define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #define dagdb_report(  ...) dagdb_report_int(  __func__, __VA_ARGS__)
 #define dagdb_report_p(...) dagdb_report_p_int(__func__, __VA_ARGS__)
+#define UNREACHABLE ({fprintf(stderr,"Unreachable state reached in '%s'\n", __func__); abort();})
 
 typedef enum {
 	DAGDB_ERROR_NONE=0,
