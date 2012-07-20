@@ -150,47 +150,38 @@ static void test_find() {
 }
 
 static void test_remove() {
-	int r;
-	r = dagdb_trie_remove(dagdb_root(), key1);
-	EX_ASSERT_EQUAL_INT(r, 1);
-	r = dagdb_trie_remove(dagdb_root(), key1);
-	EX_ASSERT_EQUAL_INT(r, 0);
-	r = dagdb_trie_remove(dagdb_root(), key3);
-	EX_ASSERT_EQUAL_INT(r, 0);
-	r = dagdb_trie_remove(dagdb_root(), key4);
-	EX_ASSERT_EQUAL_INT(r, 0);
+	// The previous tests should left the database with key1 and key2 
+	// in the root trie and nothing else in there.
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key3), 0); // fail on empty spot
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key4), 0); // fail on key mismatch.
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key1), 1); // Remove existing key
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key1), 0); // fail on already removed key
 
-	dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1);
+	dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1); // Cannot find removed key.
 	EX_ASSERT_EQUAL_INT(el1, 0u);
 
-	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
+	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2); // Can properly find other key.
 	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
 	EX_ASSERT_EQUAL_INT(dagdb_element_data(el2), 3u);
 	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el2), 4u);
 
-	r = dagdb_trie_remove(dagdb_root(), key2);
-	EX_ASSERT_EQUAL_INT(r, 1);
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key2), 1); // Removed other existing key
 	el2 = dagdb_trie_find(dagdb_root(), key2);
 	EX_ASSERT_EQUAL_INT(el2, 0u);
 }
 
 static void test_trie_kvpair() {
-	int r;
 	dagdb_pointer el = dagdb_element_create(key1, 1, 2);
 	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
 	dagdb_pointer kv = dagdb_kvpair_create(el, 3);
 	EX_ASSERT_EQUAL_INT(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
 	
-	r = dagdb_trie_insert(dagdb_root(), kv);
-	EX_ASSERT_EQUAL_INT(r, 1);
-	r = dagdb_trie_insert(dagdb_root(), el);
-	EX_ASSERT_EQUAL_INT(r, 0);
+	EX_ASSERT_EQUAL_INT(dagdb_trie_insert(dagdb_root(), kv), 1); // Insert kv-pair using key1
+	EX_ASSERT_EQUAL_INT(dagdb_trie_insert(dagdb_root(), el), 0); // inserting element using key1 fails
+	EX_ASSERT_EQUAL_INT(dagdb_trie_find(dagdb_root(), key1), kv); // The key value pair can be found
 
-	EX_ASSERT_EQUAL_INT(dagdb_trie_find(dagdb_root(), key1), kv);
-
-	r = dagdb_trie_remove(dagdb_root(), key1);
-	EX_ASSERT_EQUAL_INT(r, 1);
-	EX_ASSERT_EQUAL_INT(dagdb_kvpair_key(kv), el);
+	EX_ASSERT_EQUAL_INT(dagdb_trie_remove(dagdb_root(), key1), 1); // We can remove an element that uses key1
+	EX_ASSERT_EQUAL_INT(dagdb_kvpair_key(kv), el); // This wont affect the key value pair. 
 	EX_ASSERT_EQUAL_INT(dagdb_kvpair_value(kv), 3u);
 	dagdb_element_delete(el);
 }
