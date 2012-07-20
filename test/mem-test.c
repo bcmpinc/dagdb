@@ -225,6 +225,18 @@ static void filler_fill_normal(filler * f) {
 	verify_chunk_table();
 }
 
+static void filler_resize_reverse(filler * f, dagdb_size newsize) {
+	int i;
+	// resizing
+	for (i=f->n-1; i>=0; i--) {
+		dagdb_free(f->p[i], f->alloc_size);
+		f->p[i] = dagdb_malloc(newsize); EX_ASSERT_NO_ERROR
+		CU_ASSERT_FATAL(f->p[i]>0);
+	}
+	f->alloc_size = newsize;
+	verify_chunk_table();
+}
+
 static void filller_destroy(filler * f) {
 	free(f->p);
 	verify_chunk_table();
@@ -281,6 +293,26 @@ static void test_mem_shrinking_2S() {
 	filller_destroy(&f);
 }
 
+static void test_mem_shorten_chunks() {
+	filler f;
+	filler_create(&f, 5*S);
+	filler_fill_normal(&f);
+	filler_resize_reverse(&f, 4*S);
+	filler_resize_reverse(&f, 3*S);
+	filler_resize_reverse(&f, 2*S);
+	filler_shrink_normal(&f);
+}
+
+static void test_mem_grow_chunks() {
+	filler f;
+	filler_create(&f, 5*S);
+	filler_fill_normal(&f);
+	filler_resize_reverse(&f, 6*S);
+	filler_resize_reverse(&f, 7*S);
+	filler_resize_reverse(&f, 8*S);
+	filler_shrink_normal(&f);
+}
+
 static CU_TestInfo test_mem[] = {
   { "memory_initial", test_mem_initial },
   { "memory_error_alloc", test_mem_alloc_too_much },
@@ -288,6 +320,8 @@ static CU_TestInfo test_mem[] = {
   { "memory_shrinking", test_mem_shrinking },
   { "memory_shrinking_reverse", test_mem_shrinking_reverse },
   { "memory_shrinking_2S", test_mem_shrinking_2S },
+  { "memory_shorten_chunks", test_mem_shorten_chunks },
+  { "memory_grow_chunks", test_mem_grow_chunks },
   CU_TEST_INFO_NULL,
 };
 

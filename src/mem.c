@@ -316,8 +316,10 @@ dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_
  * Frees the provided memory.
  * Currently only zero's out the memory range.
  * This function also strips off the type information before freeing.
- * TODO (high): merge subsequent free chunks.
- * TODO (high): truncate file if possible.
+ * The chunk is put back in a pool, such that it can be reused by malloc. 
+ * If free chunks are next to the chunk being released, then these chunks are merged.
+ * If the last chunk used in the last slab is removed, then that slab is,
+ * and all empty slabs that come directly before that are, truncated.
  */
 void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Strip type information
