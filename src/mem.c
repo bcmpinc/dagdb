@@ -433,8 +433,6 @@ static void dagdb_initialize_header(Header* h) {
 /**
  * Opens the given file. Creates it if it does not yet exist.
  * @returns 0 if successful.
- * TODO (high): give more information in case of error.
- * TODO (high): convert failing assertions to load failure.
  */
 int dagdb_load(const char *database) {
 	// Open the database file
