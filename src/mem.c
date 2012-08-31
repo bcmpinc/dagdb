@@ -335,6 +335,7 @@ void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	// Free range in bitmap.
 	dagdb_bitmap_mark(location, length, 0);
 	
+	// TODO (med): move left and right chunk elimination to a separate function, such that it can be reused in realloc.
 	int_fast32_t bit, size;
 	// Check for free chunk left.
 	MemorySlab * slab = LOCATE(MemorySlab, location & ~(SLAB_SIZE-1));

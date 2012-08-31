@@ -183,9 +183,24 @@ typedef uint8_t * key;
 /** 
  * The trie
  * 16 * S bytes: Pointers (trie or element)
- * TODO (med): make tries much more space efficient.
- * TODO (med): embed kv-pairs into tries.
+ * 
+ * The elements of a map are stored in a special kind of tree, known as a trie.
+ * Leave nodes store the keys and their associated values. (element or kvpair)
+ * Parent nodes store up to 2^4 = 16 pointers to child nodes.
+ * 
+ * Let x be a key that is stored below node n. 
+ * Let k denote the level of the node. For the root node k=0, for its child nodes k=1.
+ * Then the k-th 4 bits of key x denotes the index of the pointer to the child node that stores x.
+ * 
+ * TODO (low): make tries much more space efficient. 
+ *             Instead of 16, support 256 child nodes. With the help of a bitmap, 
+ *             we can limit the storage requirement to only the non-null pointers.
+ *             This alternative requires realloc to be implemented.
+ * TODO (low): embed kv-pairs into tries.
+ *             The current implementation stores a single pointer to a pair of pointers.
+ *             Embedding the two pointers into the trie would prevent one IO and reduce memory usage of kvpairs by one third.
  * TODO (low): make tries implicit (with a single pointer to its location) to allow realloc operations.
+ * 
  */
 typedef struct {
 	dagdb_pointer entry[16];
