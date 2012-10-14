@@ -192,6 +192,8 @@ static void test_mem_initial() {
 }
 
 static void test_mem_alloc_too_much() {
+	// Checks if malloc returns a null pointer if the requested
+	// memory size is too large.
 	dagdb_pointer p = dagdb_malloc(MAX_CHUNK_SIZE + 1); 
 	EX_ASSERT_EQUAL_INT(p, 0);
 	EX_ASSERT_ERROR(DAGDB_ERROR_BAD_ARGUMENT); 

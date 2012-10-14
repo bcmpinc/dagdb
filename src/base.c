@@ -56,8 +56,16 @@ typedef struct {
 } Data;
 STATIC_ASSERT(sizeof(Data)==S,invalid_data_size);
 
+/**
+ * Allocates a data chunk of specified length.
+ * The provided data is copied into the chunk.
+ * If memory allocation fails, this function returns 0.
+ * Otherwise, a pointer to the data chunk is returned.
+ * TODO: check checking of return value.
+ */
 dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Data) + length);
+	if (!r) return 0;
 	Data* d = LOCATE(Data,r);
 	d->length = length;
 	memcpy(d->data, data, length);
@@ -102,8 +110,16 @@ typedef struct {
 	dagdb_pointer data;
 } Element;
 
+/**
+ * Allocates an element with specified key.
+ * The data and backref pointers are copied into the element.
+ * If memory allocation fails, this function returns 0.
+ * Otherwise, a pointer to the element is returned.
+ * TODO: check checking of return value.
+ */
 dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
+	if (!r) return 0;
 	Element*  e = LOCATE(Element, r);
 	memcpy(e->key, key, DAGDB_KEY_LENGTH);
 	e->data = data;
@@ -144,9 +160,14 @@ typedef struct  {
 	dagdb_pointer value;
 } KVPair;
 
+/**
+ * Returns 0 if memory allocation fails.
+ * TODO: check checking of return value.
+ */
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 	assert(dagdb_get_type(key) == DAGDB_TYPE_ELEMENT);
 	dagdb_pointer r = dagdb_malloc(sizeof(KVPair));
+	if (!r) return 0;
 	KVPair*  p = LOCATE(KVPair, r);
 	p->key = key;
 	p->value = value;
@@ -206,9 +227,15 @@ typedef struct {
 	dagdb_pointer entry[16];
 } Trie;
 
+/**
+ * Returns 0 if memory allocation fails.
+ * TODO: check checking of return value.
+ */
 dagdb_pointer dagdb_trie_create()
 {
-	return dagdb_malloc(sizeof(Trie)) | DAGDB_TYPE_TRIE;
+	dagdb_pointer r = dagdb_malloc(sizeof(Trie));
+	if (!r) return 0;
+	return r | DAGDB_TYPE_TRIE;
 }
 
 /**

@@ -240,9 +240,7 @@ STATIC_ASSERT((SLAB_SIZE & (SLAB_SIZE-1)) == 0, slab_size_power_of_two);
 
 /**
  * Allocates the requested amount of bytes.
- * Currently always enlarges the file by 'length'.
  * @return A pointer to the newly allocated memory, 0 in case of an error.
- * TODO (high): let all uses of this function check the return value.
  */
 dagdb_pointer dagdb_malloc(dagdb_size length) {
 	// Traverse the free chunk table, to find an empty spot in one of the already existing slabs.
