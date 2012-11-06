@@ -59,9 +59,8 @@ STATIC_ASSERT(sizeof(Data)==S,invalid_data_size);
 /**
  * Allocates a data chunk of specified length.
  * The provided data is copied into the chunk.
- * If memory allocation fails, this function returns 0.
- * Otherwise, a pointer to the data chunk is returned.
- * TODO: check checking of return value.
+ * If memory allocation succeeds, a pointer to the data chunk is returned.
+ * Otherwise, this function returns 0.
  */
 dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Data) + length);
@@ -113,9 +112,8 @@ typedef struct {
 /**
  * Allocates an element with specified key.
  * The data and backref pointers are copied into the element.
- * If memory allocation fails, this function returns 0.
- * Otherwise, a pointer to the element is returned.
- * TODO: check checking of return value.
+ * If memory allocation succeeds, a pointer to the element is returned.
+ * Otherwise, this function returns 0.
  */
 dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
@@ -162,7 +160,6 @@ typedef struct  {
 
 /**
  * Returns 0 if memory allocation fails.
- * TODO: check checking of return value.
  */
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 	assert(dagdb_get_type(key) == DAGDB_TYPE_ELEMENT);
@@ -229,7 +226,6 @@ typedef struct {
 
 /**
  * Returns 0 if memory allocation fails.
- * TODO: check checking of return value.
  */
 dagdb_pointer dagdb_trie_create()
 {
@@ -317,10 +313,13 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
  * The pointer must be an Element or KVPair.
  * Returns 1 if the element is indeed added to the trie.
  * Returns 0 if the element was already in the trie.
+ * Returns -1 if the element is not in the trie and an error occured
+ * while trying to add it.
  */
 int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
 	assert(trie>=HEADER_SIZE);
+	assert(pointer>=HEADER_SIZE);
 	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
 	
 	key k = obtain_key(pointer);
@@ -348,6 +347,10 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 			int_fast32_t m = nibble(l,i);
 			while (n == m) {
 				dagdb_pointer newtrie = dagdb_trie_create();
+				if (!newtrie) {
+					// An error occured. Use dagdb_last_error() to obtain the reason.
+					return -1;
+				}
 				Trie*  t2 = LOCATE(Trie, newtrie);
 				i++;
 				
