@@ -43,16 +43,16 @@ typedef enum {
 int           dagdb_load(const char * database);
 void          dagdb_unload();
 
-dagdb_handle  dagdb_write_data(long length, const char * data);
-dagdb_handle  dagdb_write_record(long entries, dagdb_record_entry * items);
-dagdb_handle  dagdb_find_data(long length, const char * data);
-dagdb_handle  dagdb_find_record(long entries, dagdb_record_entry * items);
+dagdb_handle  dagdb_write_data(uint64_t length, const char * data);
+dagdb_handle  dagdb_write_record(uint_fast32_t entries, dagdb_record_entry * items);
+dagdb_handle  dagdb_find_data(uint64_t length, const char * data);
+dagdb_handle  dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items);
 
 dagdb_handle_type dagdb_get_handle_type(dagdb_handle item);
 
 // Data only methods.
 uint64_t          dagdb_data_length(dagdb_handle h);
-uint64_t          dagdb_data_read(uint8_t * buffer, dagdb_handle h, long offset, long max_size);
+uint64_t          dagdb_data_read(uint8_t * buffer, dagdb_handle h, uint64_t offset, uint64_t max_size);
 
 // Record/map/set only methods
 dagdb_handle      dagdb_select(dagdb_handle map, dagdb_handle key);

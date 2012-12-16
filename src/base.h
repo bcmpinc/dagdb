@@ -44,6 +44,7 @@ dagdb_pointer dagdb_element_create (dagdb_key key, dagdb_pointer data, dagdb_poi
 void          dagdb_element_delete (dagdb_pointer location);
 dagdb_pointer dagdb_element_data   (dagdb_pointer location);
 dagdb_pointer dagdb_element_backref(dagdb_pointer location);
+void          dagdb_element_key    (uint8_t * key, dagdb_pointer location);
 
 // Data related
 dagdb_pointer dagdb_data_create(dagdb_size length, const void * data);

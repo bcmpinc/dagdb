@@ -118,7 +118,7 @@ typedef struct {
 dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_pointer backref) {
 	dagdb_pointer r = dagdb_malloc(sizeof(Element));
 	if (!r) return 0;
-	Element*  e = LOCATE(Element, r);
+	Element* e = LOCATE(Element, r);
 	memcpy(e->key, key, DAGDB_KEY_LENGTH);
 	e->data = data;
 	e->backref = backref;
@@ -130,18 +130,28 @@ void dagdb_element_delete(dagdb_pointer location) {
 	dagdb_free(location, sizeof(Element));
 }
 
+/**
+ * Returns the data pointer of this element. 
+ * This should be a pointer to data or the root of a trie.
+ */
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
 	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
-	Element*  e = LOCATE(Element, location);
+	Element* e = LOCATE(Element, location);
 	return e->data;
 }
 
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
 	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
-	Element*  e = LOCATE(Element, location);
+	Element* e = LOCATE(Element, location);
 	return e->backref;
 }
 
+void dagdb_element_key(uint8_t * key, dagdb_pointer location)
+{
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
+	Element* e = LOCATE(Element, location);
+	memcpy(key, e->key, DAGDB_KEY_LENGTH);
+}
 
 //////////////
 // KV Pairs //

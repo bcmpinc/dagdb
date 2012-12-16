@@ -16,17 +16,33 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <gcrypt.h>
+
 #include "api.h"
 #include "base.h"
 
-typedef struct {
-	
-} dagdb_item;
-
-dagdb_item* dagdb_create_record ( long int entries, dagdb_record_entry* items ) {
-	long i;
-	for (i=0; i<entries; i++) {
-		dagdb_record_entry  p = items[i];
-		
-	}
+typedef uint8_t dagdb_hash[DAGDB_KEY_LENGTH];
+static void dagdb_data_hash(dagdb_hash h, int length, const void * data) {
+	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);
 }
+
+static dagdb_handle dagdb_record_hash(long int entries, dagdb_record_entry * items) {
+	long i;
+	dagdb_hash * keylist = malloc(entries * sizeof(dagdb_key) * 2);
+	for (i=0; i<entries*2; i++) {
+		dagdb_element_key(keylist[i], ((dagdb_pointer*)items)[i]);
+	}
+	qsort(keylist, entries, sizeof(dagdb_record_entry), NULL);
+}
+
+dagdb_handle dagdb_find_data(uint64_t length, const char* data) {
+	dagdb_hash h;
+	dagdb_data_hash(h, length, data);
+	return dagdb_trie_find(dagdb_root(), h);
+}
+
+dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items)
+{
+
+}
+
