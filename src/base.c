@@ -36,7 +36,7 @@ STATIC_ASSERT(DAGDB_TYPE_KVPAIR  < S,pointer_size_too_small_to_contain_type_kvpa
 /**
  * Obtains the type inormation of the given pointer.
  */
-inline dagdb_pointer_type dagdb_get_type(dagdb_pointer location) {
+inline dagdb_pointer_type dagdb_get_pointer_type(dagdb_pointer location) {
 	return location&DAGDB_TYPE_MASK;
 }
 
@@ -72,19 +72,19 @@ dagdb_pointer dagdb_data_create(dagdb_size length, const void *data) {
 }
 
 void dagdb_data_delete(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_DATA);
 	Data* d = LOCATE(Data,location);
 	dagdb_free(location, sizeof(Data) + d->length);
 }
 
 dagdb_size dagdb_data_length(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_DATA);
 	Data* d = LOCATE(Data,location);
 	return d->length;
 }
 
-const void *dagdb_data_read(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_DATA);
+const void *dagdb_data_access(dagdb_pointer location) {
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_DATA);
 	Data* d = LOCATE(Data,location);
 	return d->data;
 }
@@ -126,18 +126,18 @@ dagdb_pointer dagdb_element_create(dagdb_key key, dagdb_pointer data, dagdb_poin
 }
 
 void dagdb_element_delete(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
 	dagdb_free(location, sizeof(Element));
 }
 
 dagdb_pointer dagdb_element_data(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
 	Element*  e = LOCATE(Element, location);
 	return e->data;
 }
 
 dagdb_pointer dagdb_element_backref(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_ELEMENT);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_ELEMENT);
 	Element*  e = LOCATE(Element, location);
 	return e->backref;
 }
@@ -162,7 +162,7 @@ typedef struct  {
  * Returns 0 if memory allocation fails.
  */
 dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
-	assert(dagdb_get_type(key) == DAGDB_TYPE_ELEMENT);
+	assert(dagdb_get_pointer_type(key) == DAGDB_TYPE_ELEMENT);
 	dagdb_pointer r = dagdb_malloc(sizeof(KVPair));
 	if (!r) return 0;
 	KVPair*  p = LOCATE(KVPair, r);
@@ -172,18 +172,18 @@ dagdb_pointer dagdb_kvpair_create(dagdb_pointer key, dagdb_pointer value) {
 }
 
 void dagdb_kvpair_delete(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_KVPAIR);
 	dagdb_free(location, 2 * S);
 }
 
 dagdb_pointer dagdb_kvpair_key(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_KVPAIR);
 	KVPair*  p = LOCATE(KVPair, location);
 	return p->key;
 }
 
 dagdb_pointer dagdb_kvpair_value(dagdb_pointer location) {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_KVPAIR);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_KVPAIR);
 	KVPair*  p = LOCATE(KVPair, location);
 	return p->value;
 }
@@ -239,11 +239,11 @@ dagdb_pointer dagdb_trie_create()
  */
 void dagdb_trie_delete(dagdb_pointer location)
 {
-	assert(dagdb_get_type(location) == DAGDB_TYPE_TRIE);
+	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_TRIE);
 	uint_fast32_t i;
 	Trie*  t = LOCATE(Trie, location);
 	for (i=0; i<16; i++) {
-		if (dagdb_get_type(t->entry[i]) == DAGDB_TYPE_TRIE)
+		if (dagdb_get_pointer_type(t->entry[i]) == DAGDB_TYPE_TRIE)
 			dagdb_trie_delete(t->entry[i]);
 	}
 	dagdb_free(location, sizeof(Trie));
@@ -263,13 +263,13 @@ static uint_fast32_t nibble(const uint8_t * key, uint_fast32_t index) {
  */
 static key obtain_key(dagdb_pointer pointer) {
 	// Obtain the key.
-	if (dagdb_get_type(pointer) == DAGDB_TYPE_KVPAIR) {
+	if (dagdb_get_pointer_type(pointer) == DAGDB_TYPE_KVPAIR) {
 		assert(pointer>=HEADER_SIZE);
 		KVPair* kv = LOCATE(KVPair,pointer);
 		pointer = kv->key;
 	}
 	assert(pointer>=HEADER_SIZE);
-	assert(dagdb_get_type(pointer) == DAGDB_TYPE_ELEMENT);
+	assert(dagdb_get_pointer_type(pointer) == DAGDB_TYPE_ELEMENT);
 	Element* e = LOCATE(Element,pointer);
 	return e->key;
 }
@@ -281,7 +281,7 @@ static key obtain_key(dagdb_pointer pointer) {
 dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 {
 	assert(trie>=HEADER_SIZE);
-	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
+	assert(dagdb_get_pointer_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
 	int_fast32_t i;
@@ -292,7 +292,7 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 			// Spot is empty, so return null pointer
 			return 0;
 		}
-		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+		if (dagdb_get_pointer_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
 			// Descend into the already existing sub-trie
 			trie = t->entry[n];
 		} else {
@@ -320,7 +320,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 {
 	assert(trie>=HEADER_SIZE);
 	assert(pointer>=HEADER_SIZE);
-	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
+	assert(dagdb_get_pointer_type(trie) == DAGDB_TYPE_TRIE);
 	
 	key k = obtain_key(pointer);
 	
@@ -334,7 +334,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 			t->entry[n] = pointer;
 			return 1;
 		}
-		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+		if (dagdb_get_pointer_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
 			// Descend into the already existing sub-trie
 			trie = t->entry[n];
 		} else {
@@ -375,7 +375,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 {
 	assert(trie>=HEADER_SIZE);
-	assert(dagdb_get_type(trie) == DAGDB_TYPE_TRIE);
+	assert(dagdb_get_pointer_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
 	int_fast32_t i;
@@ -386,7 +386,7 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 			// Spot is empty, so return null pointer
 			return 0;
 		}
-		if (dagdb_get_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
+		if (dagdb_get_pointer_type(t->entry[n]) == DAGDB_TYPE_TRIE) {
 			// Descend into the already existing sub-trie
 			trie = t->entry[n];
 		} else {

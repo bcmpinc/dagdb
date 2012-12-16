@@ -7,6 +7,7 @@ find_package(Libgcrypt REQUIRED)
 find_package(CUnit)
 
 set(lib_src
+	src/api.c
 	src/bitarray.c
 	src/base.c
 	src/mem.c

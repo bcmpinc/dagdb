@@ -68,16 +68,16 @@ static void test_data() {
 	const char *data = "This is a test";
 	uint_fast32_t len = strlen(data);
 	dagdb_pointer p = dagdb_data_create(len, data);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(p), DAGDB_TYPE_DATA);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(p), DAGDB_TYPE_DATA);
 	EX_ASSERT_EQUAL_INT(dagdb_data_length(p), len);
-	CU_ASSERT_NSTRING_EQUAL((const char *) dagdb_data_read(p), data, len);
+	CU_ASSERT_NSTRING_EQUAL((const char *) dagdb_data_access(p), data, len);
 	dagdb_data_delete(p);
 }
 
 static void test_element() {
 	dagdb_pointer el = dagdb_element_create(key1, 1000, 1337);
 	CU_ASSERT(el);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el), DAGDB_TYPE_ELEMENT);
 	EX_ASSERT_EQUAL_INT(dagdb_element_data(el), 1000u);
 	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el), 1337u);
 	key k = obtain_key(el);
@@ -88,10 +88,10 @@ static void test_element() {
 static void test_kvpair() {
 	// Depends on element
 	dagdb_pointer el = dagdb_element_create(key1, 1, 2);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el), DAGDB_TYPE_ELEMENT);
 	dagdb_pointer kv = dagdb_kvpair_create(el, 42);
 	CU_ASSERT(kv);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(kv), DAGDB_TYPE_KVPAIR);
 	EX_ASSERT_EQUAL_INT(dagdb_kvpair_key(kv), el);
 	EX_ASSERT_EQUAL_INT(dagdb_kvpair_value(kv), 42u);
 	key k = obtain_key(kv);
@@ -105,7 +105,7 @@ static void test_kvpair() {
 static void test_trie() {
 	dagdb_pointer t = dagdb_trie_create();
 	CU_ASSERT(t);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(t), DAGDB_TYPE_TRIE);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(t), DAGDB_TYPE_TRIE);
 	dagdb_trie_delete(t);
 }
 
@@ -125,9 +125,9 @@ static void test_insert() {
 	dagdb_pointer el1 = dagdb_element_create(key1, 1, 2);
 	dagdb_pointer el2 = dagdb_element_create(key2, 3, 4);
 	dagdb_pointer el3 = dagdb_element_create(key1, 5, 6); // this is indeed the first key.
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el3), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el1), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el3), DAGDB_TYPE_ELEMENT);
 	r = dagdb_trie_insert(dagdb_root(), el1);
 	EX_ASSERT_EQUAL_INT(r, 1);
 	r = dagdb_trie_insert(dagdb_root(), el2);
@@ -139,8 +139,8 @@ static void test_insert() {
 static void test_find() {
 	dagdb_pointer el1 = dagdb_trie_find(dagdb_root(), key1);
 	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el1), DAGDB_TYPE_ELEMENT);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el1), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el2), DAGDB_TYPE_ELEMENT);
 	EX_ASSERT_EQUAL_INT(dagdb_element_data(el1), 1u);
 	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el1), 2u);
 	EX_ASSERT_EQUAL_INT(dagdb_element_data(el2), 3u);
@@ -161,7 +161,7 @@ static void test_remove() {
 	EX_ASSERT_EQUAL_INT(el1, 0u);
 
 	dagdb_pointer el2 = dagdb_trie_find(dagdb_root(), key2); // Can properly find other key.
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el2), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el2), DAGDB_TYPE_ELEMENT);
 	EX_ASSERT_EQUAL_INT(dagdb_element_data(el2), 3u);
 	EX_ASSERT_EQUAL_INT(dagdb_element_backref(el2), 4u);
 
@@ -172,9 +172,9 @@ static void test_remove() {
 
 static void test_trie_kvpair() {
 	dagdb_pointer el = dagdb_element_create(key1, 1, 2);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(el), DAGDB_TYPE_ELEMENT);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(el), DAGDB_TYPE_ELEMENT);
 	dagdb_pointer kv = dagdb_kvpair_create(el, 3);
-	EX_ASSERT_EQUAL_INT(dagdb_get_type(kv), DAGDB_TYPE_KVPAIR);
+	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(kv), DAGDB_TYPE_KVPAIR);
 	
 	EX_ASSERT_EQUAL_INT(dagdb_trie_insert(dagdb_root(), kv), 1); // Insert kv-pair using key1
 	EX_ASSERT_EQUAL_INT(dagdb_trie_insert(dagdb_root(), el), 0); // inserting element using key1 fails
@@ -185,7 +185,7 @@ static void test_trie_kvpair() {
 	EX_ASSERT_EQUAL_INT(dagdb_kvpair_value(kv), 3u);
 	dagdb_element_delete(el);
 }
-
+ 
 static void test_trie_recursive_delete() {
 	dagdb_pointer t = dagdb_trie_create();
 	dagdb_trie_insert(t, dagdb_element_create(key1, 0, 2));
