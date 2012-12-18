@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// Equality checking
 #define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
 	type a = (actual), e = (expected); \
 	char msg[512];\
@@ -31,6 +32,14 @@
 }
 #define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(actual, expected, int, "%d", EX_ASSERT_EQUAL_INT)
 #define EX_ASSERT_EQUAL_LONG_HEX(actual, expected) EX_ASSERT_EQUAL(actual, expected, uint64_t, "%lx", EX_ASSERT_EQUAL_LONG_HEX)
+
+#define EX_ASSERT_EQUAL_STRING(actual, expected) { \
+	char msg[512];\
+	snprintf(msg,512, "EX_ASSERT_EQUAL_BYTEARRAY(%s, %s) = EX_ASSERT_EQUAL_BYTEARRAY(%.20s%s, %.20s%s)", #actual, #expected, actual, (strlen(actual)>20?"...":""), expected, (strlen(expected)>20?"...":"")); \
+	CU_assertImplementation(strcmp(actual, expected)==0, __LINE__, msg, __FILE__, "", CU_FALSE); \
+}
+
+// Error checking
 #define EX_ASSERT_ERROR(expected) {\
 	char msg[512];\
 	snprintf(msg,512, "CHECK_ERROR(%s), got %d: %s", #expected, dagdb_errno, dagdb_last_error()); \
@@ -44,6 +53,7 @@
 	dagdb_errno=DAGDB_ERROR_NONE; \
 }
 
+// Helper functions
 int open_new_db();
 int close_db();
 void verify_chunk_table();
