@@ -26,13 +26,19 @@ static void dagdb_data_hash(dagdb_hash h, int length, const void * data) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);
 }
 
-static dagdb_handle dagdb_record_hash(long int entries, dagdb_record_entry * items) {
+static int cmphash(const void *p1, const void *p2)
+{
+    return memcmp(p1, p2, DAGDB_KEY_LENGTH);
+}
+
+static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry * items) {
 	long i;
 	dagdb_hash * keylist = malloc(entries * sizeof(dagdb_key) * 2);
 	for (i=0; i<entries*2; i++) {
 		dagdb_element_key(keylist[i], ((dagdb_pointer*)items)[i]);
 	}
-	qsort(keylist, entries, sizeof(dagdb_record_entry), NULL);
+	qsort(keylist, entries, sizeof(dagdb_record_entry), cmphash);
+	dagdb_data_hash(h, entries * 2 * DAGDB_KEY_LENGTH, keylist);
 }
 
 dagdb_handle dagdb_find_data(uint64_t length, const char* data) {
@@ -41,8 +47,9 @@ dagdb_handle dagdb_find_data(uint64_t length, const char* data) {
 	return dagdb_trie_find(dagdb_root(), h);
 }
 
-dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items)
-{
-
+dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items) {
+	dagdb_hash h;
+	dagdb_record_hash(h, entries, items);
+	return dagdb_trie_find(dagdb_root(), h);
 }
 
