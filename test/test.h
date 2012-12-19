@@ -25,10 +25,10 @@
 
 // Equality checking
 #define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
-	type a = (actual), e = (expected); \
+	type __a = (actual), __e = (expected); \
 	char msg[512];\
-	snprintf(msg,512, #name "(%s, %s) = " #name "("fmt", "fmt")", #actual, #expected, a, e); \
-	CU_assertImplementation(a==e, __LINE__, msg, __FILE__, "", CU_FALSE); \
+	snprintf(msg,512, #name "(%s, %s) = " #name "("fmt", "fmt")", #actual, #expected, __a, __e); \
+	CU_assertImplementation(__a==__e, __LINE__, msg, __FILE__, "", CU_FALSE); \
 }
 #define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(actual, expected, int, "%d", EX_ASSERT_EQUAL_INT)
 #define EX_ASSERT_EQUAL_LONG_HEX(actual, expected) EX_ASSERT_EQUAL(actual, expected, uint64_t, "%lx", EX_ASSERT_EQUAL_LONG_HEX)

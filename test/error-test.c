@@ -21,6 +21,19 @@
 
 #include "test.h"
 
+static void test_snprintf() {
+	char a[32]="xxxxxxxxyz";
+	int n = snprintf(a, 8, "0123456789");
+	EX_ASSERT_EQUAL_INT(n, 10);
+	EX_ASSERT_EQUAL_INT(a[6],'6');
+	EX_ASSERT_EQUAL_INT(a[7],0);
+	EX_ASSERT_EQUAL_INT(a[8],'y');
+	EX_ASSERT_EQUAL_INT(a[9],'z');
+	CU_ASSERT_NOT_EQUAL(a[7],'7');
+	CU_ASSERT_NOT_EQUAL(a[8],'8');
+	CU_ASSERT_NOT_EQUAL(a[9],'9');
+}
+
 static void test_no_error() {
 	EX_ASSERT_NO_ERROR
 	CU_ASSERT_NOT_EQUAL(dagdb_last_error(), NULL);
@@ -60,9 +73,10 @@ static void test_long_message() {
 }
 
 static CU_TestInfo test_error[] = {
+	{ "sane_snprintf", test_snprintf }, 
 	{ "no_errors", test_no_error },
 	{ "perror", test_p },
-//	{ "long_function", test_long_function }, // TODO: figure out why this kills gcov.
+	{ "long_function", test_long_function }, // TODO: figure out why this kills gcov.
 	{ "long_message", test_long_message },
 	CU_TEST_INFO_NULL,
 };

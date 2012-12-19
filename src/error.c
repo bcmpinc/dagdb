@@ -24,9 +24,9 @@ void dagdb_report_int(const char * function, const char * format, ...) {
 	va_list args;
 	va_start(args, format);
 	int_fast32_t l=0;
-	l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
-	l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
-	l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ".");
+	                       l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
+	if(l<sizeof(errormsg)) l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
+	if(l<sizeof(errormsg)) l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ".");
 	va_end(args);
 }
 
@@ -37,10 +37,10 @@ void dagdb_report_p_int(const char * function, const char * format, ...) {
 	va_list args;
 	va_start(args, format);
 	int_fast32_t l=0;
-	l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
-	l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
-	l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ":");
-	strerror_r(errno, errormsg + l, sizeof(errormsg) - l); 
+	                       l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
+	if(l<sizeof(errormsg)) l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
+	if(l<sizeof(errormsg)) l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ":");
+	if(l<sizeof(errormsg)) strerror_r(errno, errormsg + l, sizeof(errormsg) - l); 
 	va_end(args);
 } 
 
