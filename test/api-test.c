@@ -29,12 +29,19 @@ static void convert_hash(dagdb_key key, char* str) {
 	}
 }
 
-static void parse_hash(dagdb_hash h, char* str) {
-	int i;
-	for(i=0; i<DAGDB_KEY_LENGTH; i++) {
+static void parse_hashes(char* hash, const char* str, int L) {
+	int j;
+	for(j=0; j<L; j++) {
 		int v;
-		sscanf(str+2*i, "%02x", &v);
-		h[i]=v;
+		sscanf(str+2*j, "%02x", &v);
+		hash[j]=v;
+	}
+}
+
+static void write_hashes(const char* hash, char* str, int L) {
+	int j;
+	for(j=0; j<L; j++) {
+		sprintf(str+2*j, "%02x", (unsigned char)hash[j]);
 	}
 }
 
@@ -55,7 +62,46 @@ static void test_data_hashing() {
 	EX_ASSERT_EQUAL_STRING(our_hash, dagdb_hashed)
 }
 
+/* A test record. Its contents are:
+ * a -> b
+ * c -> d
+ * e -> f
+ * g -> h
+ * i -> j
+ */
+
+const char record[] =
+	"86f7e437faa5a7fce15d1ddcb9eaeaea377667b8e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98"
+	"84a516841ba77a5b4648de2cd0dfcb30ea46dbb43c363836cf4e16666669a25da280a1865c2d2874"
+	"58e6b3a414a1e090dfc6029add0f3555ccba127f4a0a19218e082a343a1b17e5333409af9d98f0f5"
+	"54fd1711209fb1c0781092374132c66e79e2241b27d5482eebd075de44389774fce28c69f45c8a75"
+	"042dc4512fa3d391c5170cf3aa61e6a638f843425c2dd944dde9e08881bef0894fe7b22a5c9c4b06";
+
+const char record_sorted[] =
+	"042dc4512fa3d391c5170cf3aa61e6a638f843425c2dd944dde9e08881bef0894fe7b22a5c9c4b06"
+	"54fd1711209fb1c0781092374132c66e79e2241b27d5482eebd075de44389774fce28c69f45c8a75"
+	"58e6b3a414a1e090dfc6029add0f3555ccba127f4a0a19218e082a343a1b17e5333409af9d98f0f5"
+	"84a516841ba77a5b4648de2cd0dfcb30ea46dbb43c363836cf4e16666669a25da280a1865c2d2874"
+	"86f7e437faa5a7fce15d1ddcb9eaeaea377667b8e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98";
+
+/* 
+ * This test checks if the hash comparison function works properly.
+ */
 static void test_record_sorting() {
+	// Check if sscanf works as expected.
+	int a;
+	sscanf("123","%02x",&a);
+	EX_ASSERT_EQUAL_INT(18, a);
+	
+	// Convert the hex-encoded strings
+	const int L = sizeof(record) / 2;
+	char temp[L], temp_sorted[L];
+	parse_hashes(temp, record, L);
+	parse_hashes(temp_sorted, record_sorted, L);
+	
+	// Sort and check
+	qsort(temp, 5, 2*DAGDB_KEY_LENGTH, cmphash);
+	CU_ASSERT(memcmp(temp,temp_sorted,L)==0);
 }
 
 static void test_record_hashing() {

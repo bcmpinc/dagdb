@@ -37,7 +37,7 @@ static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry
 	for (i=0; i<entries*2; i++) {
 		dagdb_element_key(keylist[i], ((dagdb_pointer*)items)[i]);
 	}
-	qsort(keylist, entries, sizeof(dagdb_record_entry), cmphash);
+	qsort(keylist, entries, DAGDB_KEY_LENGTH*2, cmphash);
 	dagdb_data_hash(h, entries * 2 * DAGDB_KEY_LENGTH, keylist);
 }
 
