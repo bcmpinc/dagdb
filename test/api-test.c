@@ -47,9 +47,10 @@ static void write_hashes(const char* hash, char* str, int L) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+const char empty_hash[] = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+const char dagdb_hashed[] = "33b7a80fa95e8f6e70820af2fc4eaf857b9b8c3d";
+
 static void test_data_hashing() {
-	const char empty_hash[] = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
-	const char dagdb_hashed[] = "33b7a80fa95e8f6e70820af2fc4eaf857b9b8c3d";
 	char our_hash[42];
 	dagdb_hash h;
 
@@ -84,6 +85,8 @@ const char record_sorted[] =
 	"84a516841ba77a5b4648de2cd0dfcb30ea46dbb43c363836cf4e16666669a25da280a1865c2d2874"
 	"86f7e437faa5a7fce15d1ddcb9eaeaea377667b8e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98";
 
+const char record_hash[] = "7013bbcf8e68c59d8bd5f0c12248edf18b4f2cc3";
+
 /* 
  * This test checks if the hash comparison function works properly.
  */
@@ -105,6 +108,24 @@ static void test_record_sorting() {
 }
 
 static void test_record_hashing() {
+	// Convert the hex-encoded strings
+	const int L = sizeof(record) / 2;
+	char temp[L], temp_sorted[L];
+	parse_hashes(temp, record, L);
+	parse_hashes(temp_sorted, record_sorted, L);
+
+	// Test Hash of pre-sorted data
+	char our_hash[42];
+	dagdb_hash h;
+	dagdb_data_hash(h, 5 * 2 * DAGDB_KEY_LENGTH, temp_sorted);
+	convert_hash(h, our_hash);
+	EX_ASSERT_EQUAL_STRING(our_hash, record_hash);
+	
+	// Test record hash function.
+	// TODO: this must wait until we implemented & tested insertion.
+	// dagdb_record_hash(h, 5, temp);
+	// convert_hash(h, our_hash);
+	// EX_ASSERT_EQUAL_STRING(our_hash, record_hash);
 }
 
 static CU_TestInfo test_api_non_io[] = {
