@@ -63,6 +63,17 @@ static void test_data_hashing() {
 	EX_ASSERT_EQUAL_STRING(our_hash, dagdb_hashed)
 }
 
+static void test_hash_flip() {
+	dagdb_hash h;
+	dagdb_data_hash(h, 0, "");
+	dagdb_hash g;
+	memcpy(g,h,DAGDB_KEY_LENGTH);
+	flip_hash(g);
+	CU_ASSERT_NSTRING_NOT_EQUAL(g,h, DAGDB_KEY_LENGTH);
+	flip_hash(g);
+	CU_ASSERT_NSTRING_EQUAL(g,h, DAGDB_KEY_LENGTH);
+}
+
 /* A test record. Its contents are:
  * a -> b
  * c -> d
@@ -85,7 +96,7 @@ const char record_sorted[] =
 	"84a516841ba77a5b4648de2cd0dfcb30ea46dbb43c363836cf4e16666669a25da280a1865c2d2874"
 	"86f7e437faa5a7fce15d1ddcb9eaeaea377667b8e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98";
 
-const char record_hash[] = "7013bbcf8e68c59d8bd5f0c12248edf18b4f2cc3";
+const char record_hash_unflipped[] = "7013bbcf8e68c59d8bd5f0c12248edf18b4f2cc3";
 
 /* 
  * This test checks if the hash comparison function works properly.
@@ -102,9 +113,61 @@ static void test_record_sorting() {
 	parse_hashes(temp, record, L);
 	parse_hashes(temp_sorted, record_sorted, L);
 	
+	// Test conversion code
+	char buf[L*2+1];
+	write_hashes(temp, buf, L);
+	EX_ASSERT_EQUAL_STRING(buf, record);
+
 	// Sort and check
 	qsort(temp, 5, 2*DAGDB_KEY_LENGTH, cmphash);
 	CU_ASSERT(memcmp(temp,temp_sorted,L)==0);
+}
+
+static CU_TestInfo test_api_non_io[] = {
+  { "data_hash", test_data_hashing },
+  { "hash_flip", test_hash_flip },
+  { "record_sorting", test_record_sorting },
+  CU_TEST_INFO_NULL,
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+const char * test_data[] = {
+	"",
+	"a",
+	"b",
+	"test",
+	"slightly longer data",
+	record,
+	record_sorted,
+};
+
+static void test_data_write() {
+	const int N = sizeof(test_data) / sizeof(test_data[0]);
+	int i;
+	for (i=0; i<N; i++) {
+		dagdb_handle e = dagdb_find_data(strlen(test_data[i]), test_data[i]);
+		dagdb_handle h = dagdb_write_data(strlen(test_data[i]), test_data[i]);
+		dagdb_handle f = dagdb_find_data(strlen(test_data[i]), test_data[i]);
+		dagdb_handle g = dagdb_write_data(strlen(test_data[i]), test_data[i]);
+		EX_ASSERT_EQUAL_INT(e,0);
+		CU_ASSERT(h != 0);
+		EX_ASSERT_EQUAL_INT(f,h);
+		EX_ASSERT_EQUAL_INT(g,h);
+	}
+	
+	char nullbytes[] = "data with\0null\0bytes.";
+	int length = 21;
+	{
+		dagdb_handle e = dagdb_find_data(length, nullbytes);
+		dagdb_handle h = dagdb_write_data(length, nullbytes);
+		dagdb_handle f = dagdb_find_data(length, nullbytes);
+		dagdb_handle g = dagdb_write_data(length, nullbytes);
+		EX_ASSERT_EQUAL_INT(e,0);
+		CU_ASSERT(h != 0);
+		EX_ASSERT_EQUAL_INT(f,h);
+		EX_ASSERT_EQUAL_INT(g,h);
+	}
 }
 
 static void test_record_hashing() {
@@ -113,13 +176,13 @@ static void test_record_hashing() {
 	char temp[L], temp_sorted[L];
 	parse_hashes(temp, record, L);
 	parse_hashes(temp_sorted, record_sorted, L);
-
+	
 	// Test Hash of pre-sorted data
 	char our_hash[42];
 	dagdb_hash h;
 	dagdb_data_hash(h, 5 * 2 * DAGDB_KEY_LENGTH, temp_sorted);
 	convert_hash(h, our_hash);
-	EX_ASSERT_EQUAL_STRING(our_hash, record_hash);
+	EX_ASSERT_EQUAL_STRING(our_hash, record_hash_unflipped);
 	
 	// Test record hash function.
 	// TODO: this must wait until we implemented & tested insertion.
@@ -128,16 +191,9 @@ static void test_record_hashing() {
 	// EX_ASSERT_EQUAL_STRING(our_hash, record_hash);
 }
 
-static CU_TestInfo test_api_non_io[] = {
-  { "data_hash", test_data_hashing },
-  { "record_sorting", test_record_sorting },
-  { "record_hash", test_record_hashing },
-  CU_TEST_INFO_NULL,
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
 static CU_TestInfo test_api_read_write[] = {
+  { "data_write", test_data_write },
+  { "record_hash", test_record_hashing },
   CU_TEST_INFO_NULL,
 };
 

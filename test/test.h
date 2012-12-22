@@ -35,7 +35,7 @@
 
 #define EX_ASSERT_EQUAL_STRING(actual, expected) { \
 	char msg[512];\
-	snprintf(msg,512, "EX_ASSERT_EQUAL_BYTEARRAY(%s, %s) = EX_ASSERT_EQUAL_BYTEARRAY(%.20s%s, %.20s%s)", #actual, #expected, actual, (strlen(actual)>20?"...":""), expected, (strlen(expected)>20?"...":"")); \
+	snprintf(msg,512, "EX_ASSERT_EQUAL_STRING(%s, %s) = EX_ASSERT_EQUAL_STRING(%.20s%s, %.20s%s)", #actual, #expected, actual, (strlen(actual)>20?"...":""), expected, (strlen(expected)>20?"...":"")); \
 	CU_assertImplementation(strcmp(actual, expected)==0, __LINE__, msg, __FILE__, "", CU_FALSE); \
 }
 

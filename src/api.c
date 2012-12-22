@@ -26,9 +26,16 @@ static void dagdb_data_hash(dagdb_hash h, int length, const void * data) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);
 }
 
-static int cmphash(const void *p1, const void *p2)
-{
+static int cmphash(const void *p1, const void *p2) {
     return memcmp(p1, p2, DAGDB_KEY_LENGTH);
+}
+
+/** Applies bitwise inversion to the hash, to avoid hash collisions between data and records. */
+static void flip_hash(dagdb_hash h) {
+	int i;
+	for (i=0; i<DAGDB_KEY_LENGTH; i++) {
+		h[i]=~h[i];
+	}
 }
 
 static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry * items) {
@@ -39,6 +46,7 @@ static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry
 	}
 	qsort(keylist, entries, DAGDB_KEY_LENGTH*2, cmphash);
 	dagdb_data_hash(h, entries * 2 * DAGDB_KEY_LENGTH, keylist);
+	flip_hash(h);
 }
 
 dagdb_handle dagdb_find_data(uint64_t length, const char* data) {
@@ -53,3 +61,34 @@ dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items
 	return dagdb_trie_find(dagdb_root(), h);
 }
 
+dagdb_handle dagdb_write_data(uint64_t length, const char* data) {
+	dagdb_hash h;
+	dagdb_data_hash(h, length, data);
+	
+	// Check if it already exists.
+	dagdb_handle r = dagdb_trie_find(dagdb_root(), h);
+	if (r) return r;
+	
+	// Create data, backref and element.
+	dagdb_handle dataptr = dagdb_data_create(length, data);
+	if (dataptr) {
+		dagdb_handle backref = dagdb_trie_create();
+		if (dataptr) {
+			dagdb_handle element = dagdb_element_create(h, dataptr, backref);
+			if (element) {
+				int r = dagdb_trie_insert(dagdb_root(), element);
+				if (r>=0) {
+					// Insert in root trie and return handle.
+					return element;
+				}
+			}
+			dagdb_element_delete(element);
+		}
+		dagdb_trie_delete(dataptr);
+	}
+	return 0;
+}
+
+dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items) {
+
+}

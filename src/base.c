@@ -381,6 +381,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
  * Erases the value associated with the given key in this trie.
  * If no value is associated, then this function will do nothing.
  * Returns 1 if the key-value pair is erased from the trie, and 0 otherwise.
+ * TODO: remove trie if empty.
  */
 int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 {
