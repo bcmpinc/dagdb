@@ -188,13 +188,16 @@ static void test_trie_kvpair() {
  
 static void test_trie_recursive_delete() {
 	dagdb_pointer t = dagdb_trie_create();
-	dagdb_trie_insert(t, dagdb_element_create(key1, 0, 2));
-	dagdb_trie_insert(t, dagdb_element_create(key1, 1, 2));
-	dagdb_trie_insert(t, dagdb_element_create(key2, 1, 2));
-	dagdb_trie_insert(t, dagdb_element_create(key3, 1, 2));
-	dagdb_trie_insert(t, dagdb_element_create(key4, 1, 2));
+	int r1 = dagdb_trie_insert(t, dagdb_element_create(key1, 0, 2));
+	int r2 = dagdb_trie_insert(t, dagdb_element_create(key1, 1, 2));
+	int r3 = dagdb_trie_insert(t, dagdb_element_create(key2, 1, 2));
+	int r4 = dagdb_trie_insert(t, dagdb_element_create(key3, 1, 2));
+	int r5 = dagdb_trie_insert(t, dagdb_element_create(key4, 1, 2));
+	CU_ASSERT(r1 && r2==0 && r3 && r4 && r5);
 	verify_chunk_table();
 	dagdb_trie_delete(t);
+	// TODO: (high) Somehow check that the trie has been released
+	verify_chunk_table();
 }
 
 static CU_TestInfo test_trie_io[] = {

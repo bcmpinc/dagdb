@@ -186,9 +186,17 @@ static void test_record_hashing() {
 	
 	// Test record hash function.
 	// TODO: this must wait until we implemented & tested insertion.
-	// dagdb_record_hash(h, 5, temp);
-	// convert_hash(h, our_hash);
-	// EX_ASSERT_EQUAL_STRING(our_hash, record_hash);
+	
+	dagdb_handle refs[10];
+	int i;
+	for(i=0; i<10; i++) {
+		refs[i] = dagdb_write_data(1, "abcdefghij" + i);
+	}
+	
+	dagdb_record_hash(h, 5, refs);
+	flip_hash(h);
+	convert_hash(h, our_hash);
+	EX_ASSERT_EQUAL_STRING(our_hash, record_hash_unflipped);
 }
 
 static CU_TestInfo test_api_read_write[] = {

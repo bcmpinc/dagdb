@@ -25,6 +25,8 @@ typedef const uint8_t dagdb_key[DAGDB_KEY_LENGTH];
 typedef uint64_t dagdb_size;
 typedef uint64_t dagdb_pointer;
 
+#define WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
+
 typedef enum {
 	DAGDB_TYPE_DATA,
 	DAGDB_TYPE_ELEMENT,
@@ -35,9 +37,9 @@ typedef enum {
 // Trie related
 dagdb_pointer dagdb_trie_create();
 void          dagdb_trie_delete(dagdb_pointer location);
-int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer);
+int           dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer) WARN_UNUSED_RESULT;
 dagdb_pointer dagdb_trie_find  (dagdb_pointer trie, dagdb_key key);
-int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key key);
+int           dagdb_trie_remove(dagdb_pointer trie, dagdb_key key) WARN_UNUSED_RESULT;
 
 // Element related
 dagdb_pointer dagdb_element_create (dagdb_key key, dagdb_pointer data, dagdb_pointer backref);
@@ -59,7 +61,7 @@ dagdb_pointer dagdb_kvpair_key   (dagdb_pointer location);
 dagdb_pointer dagdb_kvpair_value (dagdb_pointer location);
 
 // Other
-int           dagdb_load(const char * database);
+int           dagdb_load(const char * database) WARN_UNUSED_RESULT;
 void          dagdb_unload();
 dagdb_pointer dagdb_root();
 dagdb_pointer_type dagdb_get_pointer_type(dagdb_pointer location);

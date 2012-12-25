@@ -101,16 +101,16 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	dagdb_handle r = dagdb_trie_find(dagdb_root(), h);
 	if (r) return r;
 	
-	dagdb_handle trie = 0;
+	dagdb_handle record = 0;
 	dagdb_handle backref = 0;
 	dagdb_handle element = 0;
 
 	// Create the trie, backref and element
-	trie = dagdb_trie_create();
-	if (!trie) goto error;
+	record = dagdb_trie_create();
+	if (!record) goto error;
 	backref = dagdb_trie_create();
 	if (!backref) goto error;
-	element = dagdb_element_create(h, trie, backref);
+	element = dagdb_element_create(h, record, backref);
 	if (!element) goto error;
 	int res = dagdb_trie_insert(dagdb_root(), element);
 	if (res<0) goto error;
@@ -119,7 +119,8 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	for (i=0; i<entries; i++) {
 		
 		// Insert in our record trie
-		
+		dagdb_handle kv = dagdb_kvpair_create(items[i].key, items[i].value);
+		dagdb_trie_insert(record, kv);
 	}
 
 	// Inserted in root trie, return handle.
@@ -128,6 +129,6 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	error:
 	if (element) dagdb_element_delete(element);
 	if (backref) dagdb_trie_delete(backref);
-	if (trie) dagdb_trie_delete(trie);
+	if (record) dagdb_trie_delete(record);
 	return 0;
 }
