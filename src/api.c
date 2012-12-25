@@ -69,26 +69,65 @@ dagdb_handle dagdb_write_data(uint64_t length, const char* data) {
 	dagdb_handle r = dagdb_trie_find(dagdb_root(), h);
 	if (r) return r;
 	
+	dagdb_handle dataptr = 0;
+	dagdb_handle backref = 0;
+	dagdb_handle element = 0;
+	
 	// Create data, backref and element.
-	dagdb_handle dataptr = dagdb_data_create(length, data);
-	if (dataptr) {
-		dagdb_handle backref = dagdb_trie_create();
-		if (dataptr) {
-			dagdb_handle element = dagdb_element_create(h, dataptr, backref);
-			if (element) {
-				int r = dagdb_trie_insert(dagdb_root(), element);
-				if (r>=0) {
-					// Insert in root trie and return handle.
-					return element;
-				}
-			}
-			dagdb_element_delete(element);
-		}
-		dagdb_trie_delete(dataptr);
-	}
+	dataptr = dagdb_data_create(length, data);
+	if (!dataptr) goto error;
+	backref = dagdb_trie_create();
+	if (!backref) goto error;
+	element = dagdb_element_create(h, dataptr, backref);
+	if (!element) goto error;
+	int res = dagdb_trie_insert(dagdb_root(), element);
+	if (res<0) goto error;
+
+	// Inserted in root trie, return handle.
+	return element;
+	
+	error:
+	if (element) dagdb_element_delete(element);
+	if (backref) dagdb_trie_delete(backref);
+	if (dataptr) dagdb_data_delete(dataptr);
 	return 0;
 }
 
 dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items) {
+	dagdb_hash h;
+	dagdb_record_hash(h, entries, items);
+	
+	// Check if it already exists.
+	dagdb_handle r = dagdb_trie_find(dagdb_root(), h);
+	if (r) return r;
+	
+	dagdb_handle trie = 0;
+	dagdb_handle backref = 0;
+	dagdb_handle element = 0;
 
+	// Create the trie, backref and element
+	trie = dagdb_trie_create();
+	if (!trie) goto error;
+	backref = dagdb_trie_create();
+	if (!backref) goto error;
+	element = dagdb_element_create(h, trie, backref);
+	if (!element) goto error;
+	int res = dagdb_trie_insert(dagdb_root(), element);
+	if (res<0) goto error;
+					
+	long i;
+	for (i=0; i<entries; i++) {
+		
+		// Insert in our record trie
+		
+	}
+
+	// Inserted in root trie, return handle.
+	return element;
+
+	error:
+	if (element) dagdb_element_delete(element);
+	if (backref) dagdb_trie_delete(backref);
+	if (trie) dagdb_trie_delete(trie);
+	return 0;
 }
