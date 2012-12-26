@@ -23,6 +23,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "mem.h"
 #include "error.h"
@@ -240,6 +241,9 @@ STATIC_ASSERT((SLAB_SIZE & (SLAB_SIZE-1)) == 0, slab_size_power_of_two);
 
 /**
  * Allocates the requested amount of bytes.
+ * WARNING: Like malloc, these are not zero'd out. However, as the chunks tend to be
+ * from new diskspace, which is initialized to 0, this might seem to be the case.
+ * 
  * @return A pointer to the newly allocated memory, 0 in case of an error.
  */
 dagdb_pointer dagdb_malloc(dagdb_size length) {
@@ -293,6 +297,12 @@ dagdb_pointer dagdb_malloc(dagdb_size length) {
 	assert((r % S) == 0);
 	// Mark the bitmap.
 	dagdb_bitmap_mark(r,length,1);
+#ifdef DAGDB_HARDEN_MALLOC
+	uint64_t i;
+	for (i=0; i<length; i+=8) {
+		*LOCATE(uint64_t, r+i) = random();
+	}
+#endif // DAGDB_HARDEN_MALLOC
 	return r;
 }
 STATIC_ASSERT(MAX_CHUNK_SIZE % S == 0, chunk_size_multiple_of_S);

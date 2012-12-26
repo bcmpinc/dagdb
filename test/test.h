@@ -57,4 +57,5 @@
 int open_new_db();
 int close_db();
 void verify_chunk_table();
+
 #endif 

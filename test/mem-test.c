@@ -17,6 +17,7 @@
 */
 
 // include the entire file being tested.
+#define DAGDB_HARDEN_MALLOC
 #include "../src/mem.c"
 
 #include <sys/stat.h>
