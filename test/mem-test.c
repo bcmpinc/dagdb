@@ -223,8 +223,23 @@ static void filler_fill_normal(filler * f) {
 	int i;
 	// growing
 	for (i=0; i<f->n; i++) {
-		EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*f->alloc_size);
+		if (SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*f->alloc_size > 0) {
+			// There is free space left in our slab.
+			// Check if the size of the remaining chunk, as written on disk, is what we would expect.
+			EX_ASSERT_EQUAL_INT(*LOCATE(dagdb_size, SLAB_USEABLE_SPACE_SIZE-S), SLAB_USEABLE_SPACE_SIZE - HEADER_SIZE - i*f->alloc_size);
+		} else {
+			// There should be no chunks left, so we cannot check the size of the last chunk. 
+			// So instead, we check if the chunk table is empty.
+			Header* h = LOCATE(Header,0);
+			int j;
+			for (j=0; j<CHUNK_TABLE_SIZE; j++) {
+				EX_ASSERT_EQUAL_INT(h->chunks[j*2  ], CHUNK_TABLE_LOCATION(j));
+				EX_ASSERT_EQUAL_INT(h->chunks[j*2+1], CHUNK_TABLE_LOCATION(j));
+			}
+		}
 		f->p[i] = dagdb_malloc(f->alloc_size); EX_ASSERT_NO_ERROR
+		
+		// Allocation must be successful.
 		CU_ASSERT_FATAL(f->p[i]>0);
 	}
 	EX_ASSERT_EQUAL_INT(dagdb_database_size, f->oldsize + SLAB_SIZE);
