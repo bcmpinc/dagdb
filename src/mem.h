@@ -37,7 +37,6 @@
  * Returns a pointer of type 'type', pointing to the given location in the database file.
  * Also handles stripping off the pointer's type information.
  */
-//#define LOCATE(type,location) ((type*)(assert(global.file!=MAP_FAILED),global.file+((location)&~DAGDB_TYPE_MASK)))
 #define LOCATE(type,location) ((type*)(dagdb_file+((location)&~DAGDB_TYPE_MASK)))
 
 /**

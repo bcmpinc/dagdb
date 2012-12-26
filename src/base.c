@@ -240,6 +240,7 @@ typedef struct {
 dagdb_pointer dagdb_trie_create()
 {
 	dagdb_pointer r = dagdb_malloc(sizeof(Trie));
+	memset(LOCATE(void, r), 0, sizeof(Trie));
 	if (!r) return 0;
 	return r | DAGDB_TYPE_TRIE;
 }

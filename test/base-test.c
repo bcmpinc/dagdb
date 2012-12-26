@@ -106,6 +106,13 @@ static void test_trie() {
 	dagdb_pointer t = dagdb_trie_create();
 	CU_ASSERT(t);
 	EX_ASSERT_EQUAL_INT(dagdb_get_pointer_type(t), DAGDB_TYPE_TRIE);
+	
+	// Check if trie is properly initialized.
+	Trie * v = LOCATE(Trie, t);
+	int i;
+	for(i=0; i<16; i++) {
+		EX_ASSERT_EQUAL_INT(v->entry[i], 0);
+	}
 	dagdb_trie_delete(t);
 }
 
