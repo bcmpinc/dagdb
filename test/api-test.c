@@ -193,7 +193,7 @@ static void test_record_hashing() {
 		refs[i] = dagdb_write_data(1, "abcdefghij" + i);
 	}
 	
-	dagdb_record_hash(h, 5, refs);
+	dagdb_record_hash(h, 5, (dagdb_record_entry*)refs);
 	flip_hash(h);
 	convert_hash(h, our_hash);
 	EX_ASSERT_EQUAL_STRING(our_hash, record_hash_unflipped);

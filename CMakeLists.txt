@@ -25,12 +25,12 @@ set(test_src
 
 add_library(dagdb SHARED ${lib_src})
 target_link_libraries(dagdb ${LIBGCRYPT_LIBRARIES})
-set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS}")
+set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS} -std=gnu99")
 
 if(CUNIT_FOUND)
 	add_executable(dagdb_test ${test_src}) 
 	target_link_libraries(dagdb_test ${CUNIT_LIBRARY} ${LIBGCRYPT_LIBRARIES} --coverage)
-	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${CUNIT_INCLUDE_DIR} ${LIBGCRYPT_CFLAGS} --coverage -Wall " )
+	set_property(TARGET dagdb_test PROPERTY COMPILE_FLAGS "-I ${CUNIT_INCLUDE_DIR} ${LIBGCRYPT_CFLAGS} --coverage -Wall -std=gnu99" )
 	add_custom_command(OUTPUT gcov COMMAND mkdir -p gcov VERBATIM)
 	add_custom_target(run_test ALL valgrind --suppressions=${CMAKE_SOURCE_DIR}/valgrind.supp -q --error-exitcode=42 ./dagdb_test DEPENDS dagdb_test gcov VERBATIM)
 	get_target_property(ts dagdb_test SOURCES)
