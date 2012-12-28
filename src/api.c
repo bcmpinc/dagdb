@@ -32,16 +32,14 @@ static int cmphash(const void *p1, const void *p2) {
 
 /** Applies bitwise inversion to the hash, to avoid hash collisions between data and records. */
 static void flip_hash(dagdb_hash h) {
-	int i;
-	for (i=0; i<DAGDB_KEY_LENGTH; i++) {
+	for (long i=0; i<DAGDB_KEY_LENGTH; i++) {
 		h[i]=~h[i];
 	}
 }
 
 static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry * items) {
-	long i;
 	dagdb_hash * keylist = malloc(entries * sizeof(dagdb_key) * 2);
-	for (i=0; i<entries*2; i++) {
+	for (long i=0; i<entries*2; i++) {
 		dagdb_element_key(keylist[i], ((dagdb_pointer*)items)[i]);
 	}
 	qsort(keylist, entries, DAGDB_KEY_LENGTH*2, cmphash);
@@ -115,8 +113,7 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	int res = dagdb_trie_insert(dagdb_root(), element);
 	if (res<0) goto error;
 					
-	long i;
-	for (i=0; i<entries; i++) {
+	for (long i=0; i<entries; i++) {
 		
 		// Insert in our record trie
 		dagdb_handle kv = dagdb_kvpair_create(items[i].key, items[i].value);

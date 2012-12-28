@@ -298,8 +298,7 @@ dagdb_pointer dagdb_malloc(dagdb_size length) {
 	// Mark the bitmap.
 	dagdb_bitmap_mark(r,length,1);
 #ifdef DAGDB_HARDEN_MALLOC
-	uint64_t i;
-	for (i=0; i<length; i+=8) {
+	for (uint64_t i=0; i<length; i+=8) {
 		*LOCATE(uint64_t, r+i) = random();
 	}
 #endif // DAGDB_HARDEN_MALLOC
@@ -422,8 +421,7 @@ static void dagdb_initialize_header(Header* h) {
 	h->format_version = FORMAT_VERSION;
 	
 	// Self-link all items in the free chunk table.
-	int_fast32_t i;
-	for (i=0; i<CHUNK_TABLE_SIZE; i++) {
+	for (int_fast32_t i=0; i<CHUNK_TABLE_SIZE; i++) {
 		dagdb_pointer pos = CHUNK_TABLE_LOCATION(i);
 		assert(pos < HEADER_SIZE);
 		FreeMemoryChunk * m = LOCATE(FreeMemoryChunk, pos);

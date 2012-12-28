@@ -251,9 +251,8 @@ dagdb_pointer dagdb_trie_create()
 void dagdb_trie_delete(dagdb_pointer location)
 {
 	assert(dagdb_get_pointer_type(location) == DAGDB_TYPE_TRIE);
-	uint_fast32_t i;
-	Trie*  t = LOCATE(Trie, location);
-	for (i=0; i<16; i++) {
+	Trie* t = LOCATE(Trie, location);
+	for(uint_fast32_t i=0; i<16; i++) {
 		if (dagdb_get_pointer_type(t->entry[i]) == DAGDB_TYPE_TRIE)
 			dagdb_trie_delete(t->entry[i]);
 	}
@@ -295,9 +294,8 @@ dagdb_pointer dagdb_trie_find(dagdb_pointer trie, dagdb_key k)
 	assert(dagdb_get_pointer_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
-	int_fast32_t i;
-	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
-		Trie*  t = LOCATE(Trie, trie);
+	for(uint_fast32_t i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		Trie* t = LOCATE(Trie, trie);
 		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so return null pointer
@@ -336,9 +334,8 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 	key k = obtain_key(pointer);
 	
 	// Traverse the trie.
-	int_fast32_t i;
-	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
-		Trie*  t = LOCATE(Trie, trie);
+	for(uint_fast32_t i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		Trie* t = LOCATE(Trie, trie);
 		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so we can insert it here.
@@ -390,9 +387,8 @@ int dagdb_trie_remove(dagdb_pointer trie, dagdb_key k)
 	assert(dagdb_get_pointer_type(trie) == DAGDB_TYPE_TRIE);
 	
 	// Traverse the trie.
-	int_fast32_t i;
-	for(i=0;i<2*DAGDB_KEY_LENGTH;i++) {
-		Trie*  t = LOCATE(Trie, trie);
+	for(uint_fast32_t i=0;i<2*DAGDB_KEY_LENGTH;i++) {
+		Trie* t = LOCATE(Trie, trie);
 		int_fast32_t n = nibble(k, i);
 		if (t->entry[n]==0) { 
 			// Spot is empty, so return null pointer
