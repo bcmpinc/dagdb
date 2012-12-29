@@ -17,6 +17,7 @@
 */
 
 #include <gcrypt.h>
+#include <assert.h>
 
 #include "api.h"
 #include "base.h"
@@ -92,6 +93,7 @@ dagdb_handle dagdb_write_data(uint64_t length, const char* data) {
 }
 
 dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items) {
+	// Compute the hash of the entry.
 	dagdb_hash h;
 	dagdb_record_hash(h, entries, items);
 	
@@ -112,12 +114,38 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	if (!element) goto error;
 	int res = dagdb_trie_insert(dagdb_root(), element);
 	if (res<0) goto error;
-					
+
 	for (long i=0; i<entries; i++) {
+		long res;
+		
+		// Obtain the backref trie of the i-th element being refered
+		dagdb_handle i_backref = dagdb_element_backref(items[i].value);
+		assert(i_backref > 0);
+		
+		// Obtain the hash of the i-th key
+		dagdb_hash key_hash;
+		dagdb_element_key(key_hash, items[i].key);
+		
+		// In the backref get the trie for our key (create if non-existant)
+		dagdb_handle i_kv = dagdb_trie_find(i_backref, key_hash);
+		dagdb_handle i_keytrie;
+		if (i_kv>0) {
+			i_keytrie = dagdb_kvpair_value(i_kv);
+		} else {
+			i_keytrie = dagdb_trie_create();
+			i_kv = dagdb_kvpair_create(items[i].key, i_keytrie);
+			res = dagdb_trie_insert(i_backref, i_kv);
+			assert(res==1);
+		}
+		
+		// Insert a reference to our new record.
+		res = dagdb_trie_insert(i_keytrie, element);
+		assert(res==1);
 		
 		// Insert in our record trie
 		dagdb_handle kv = dagdb_kvpair_create(items[i].key, items[i].value);
-		dagdb_trie_insert(record, kv);
+		res = dagdb_trie_insert(record, kv);
+		assert(res==1);
 	}
 
 	// Inserted in root trie, return handle.
