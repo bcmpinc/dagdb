@@ -184,4 +184,20 @@ uint64_t dagdb_bytes_length(dagdb_handle h) {
 	return dagdb_data_length(data);
 }
 
+/** Reads bytes from a bytes handle into the given buffer.
+ * Will read at most max_size bytes, starting at the position given by offset.
+ * If there are less than max_bytes, this will read until the end of the bytes element.
+ * Bytes in the buffer after the number of read bytes will remain untouched.
+ * @return number of bytes read.
+ */
+uint64_t dagdb_bytes_read(uint8_t* buffer, dagdb_handle h, uint64_t offset, uint64_t max_size) {
+	if (dagdb_get_pointer_type(h)!=DAGDB_TYPE_ELEMENT) return 0;
+	dagdb_pointer data = dagdb_element_data(h);
+	if (dagdb_get_pointer_type(data)!=DAGDB_TYPE_DATA) return 0;
+	uint64_t length = dagdb_data_length(data);
+	if (offset + max_size > length) 
+		max_size = length - offset;
+	memcpy(buffer, dagdb_data_access(data), max_size);
+	return max_size;
+}
 
