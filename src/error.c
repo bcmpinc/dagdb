@@ -23,7 +23,7 @@ dagdb_error_code dagdb_errno;
 void dagdb_report_int(const char * function, const char * format, ...) {
 	va_list args;
 	va_start(args, format);
-	int_fast32_t l=0;
+	uint_fast32_t l=0;
 	                       l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
 	if(l<sizeof(errormsg)) l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
 	if(l<sizeof(errormsg)) l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ".");
@@ -36,7 +36,7 @@ void dagdb_report_int(const char * function, const char * format, ...) {
 void dagdb_report_p_int(const char * function, const char * format, ...) { 
 	va_list args;
 	va_start(args, format);
-	int_fast32_t l=0;
+	uint_fast32_t l=0;
 	                       l +=  snprintf(errormsg+l, sizeof(errormsg)-l, "%s:", function);
 	if(l<sizeof(errormsg)) l += vsnprintf(errormsg+l, sizeof(errormsg)-l, format, args);
 	if(l<sizeof(errormsg)) l +=  snprintf(errormsg+l, sizeof(errormsg)-l, ":");

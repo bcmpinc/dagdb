@@ -19,11 +19,10 @@
 #ifndef DAGDB_BASE_H
 #define DAGDB_BASE_H
 #include <stdint.h>
+#include "types.h"
 
 #define DAGDB_KEY_LENGTH 20
 typedef const uint8_t dagdb_key[DAGDB_KEY_LENGTH];
-typedef uint64_t dagdb_size;
-typedef uint64_t dagdb_pointer;
 
 #define WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
 

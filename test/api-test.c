@@ -32,7 +32,7 @@ static void convert_hash(dagdb_key key, char* str) {
 static void parse_hashes(char* hash, const char* str, int L) {
 	int j;
 	for(j=0; j<L; j++) {
-		int v;
+		uint v;
 		sscanf(str+2*j, "%02x", &v);
 		hash[j]=v;
 	}
@@ -103,7 +103,7 @@ const char record_hash_unflipped[] = "7013bbcf8e68c59d8bd5f0c12248edf18b4f2cc3";
  */
 static void test_record_sorting() {
 	// Check if sscanf works as expected.
-	int a;
+	uint a;
 	sscanf("123","%02x",&a);
 	EX_ASSERT_EQUAL_INT(18, a);
 	

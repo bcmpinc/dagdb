@@ -19,6 +19,7 @@
 #ifndef DAGDB_MEMORY_H
 #define DAGDB_MEMORY_H
 #include <stdint.h>
+#include "types.h"
 
 /**
  * The size of a dagdb_pointer or dagdb_size variable.
@@ -49,9 +50,6 @@
  * Length of the free memory chunk lists table.
  */
 #define CHUNK_TABLE_SIZE 31
-
-typedef uint64_t dagdb_size;
-typedef uint64_t dagdb_pointer;
 
 /**
  * Stores some basic information about the database.

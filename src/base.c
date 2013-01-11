@@ -52,9 +52,9 @@ inline dagdb_pointer_type dagdb_get_pointer_type(dagdb_pointer location) {
  */
 typedef struct {
 	dagdb_size length;
-	char data[0];
+	char data[S];
 } Data;
-STATIC_ASSERT(sizeof(Data)==S,invalid_data_size);
+STATIC_ASSERT(sizeof(Data)==2*S,invalid_data_size);
 
 /**
  * Allocates a data chunk of specified length.
