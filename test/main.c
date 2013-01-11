@@ -30,7 +30,7 @@ extern CU_SuiteInfo bitarray_suites[];
 extern CU_SuiteInfo mem_suites[];
 extern CU_SuiteInfo base_suites[];
 
-int main(int argc, char **argv) {
+int main() {//int argc, char **argv) {
 	printf("Testing DAGDB\n");
 	CU_initialize_registry();
 	//CU_basic_set_mode(CU_BRM_SILENT);

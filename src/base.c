@@ -260,7 +260,6 @@ void dagdb_trie_delete(dagdb_pointer location)
 }
 
 static uint_fast32_t nibble(const uint8_t * key, uint_fast32_t index) {
-	assert(index >= 0);
 	assert(index < 2*DAGDB_KEY_LENGTH);
 	if (index&1)
 		return (key[index>>1]>>4)&0xf;

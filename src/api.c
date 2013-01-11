@@ -115,8 +115,8 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	int res = dagdb_trie_insert(dagdb_root(), element);
 	if (res<0) goto error;
 
-	for (long i=0; i<entries; i++) {
-		long res;
+	for (uint_fast32_t i=0; i<entries; i++) {
+		int res;
 		
 		// Obtain the backref trie of the i-th element being refered
 		dagdb_handle i_backref = dagdb_element_backref(items[i].value);

@@ -317,7 +317,7 @@ dagdb_pointer dagdb_realloc(dagdb_pointer location, dagdb_size oldlength, dagdb_
 	return 0;
 }
 
-#define CHECK_BIT(a) (((a)<0) || ((a)>=BITMAP_SIZE) || dagdb_bitarray_read(slab->bitmap,(a)))
+#define CHECK_BIT(a) (((a)<0) || (((unsigned)a)>=BITMAP_SIZE) || dagdb_bitarray_read(slab->bitmap,(a)))
 
 /**
  * Frees the provided memory.
@@ -343,7 +343,8 @@ void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	dagdb_bitmap_mark(location, length, 0);
 	
 	// TODO (med): move left and right chunk elimination to a separate function, such that it can be reused in realloc.
-	int_fast32_t bit, size;
+	int_fast32_t bit;
+	uint_fast32_t size;
 	// Check for free chunk left.
 	MemorySlab * slab = LOCATE(MemorySlab, location & ~(SLAB_SIZE-1));
 	bit = (location % SLAB_SIZE)/S;

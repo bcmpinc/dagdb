@@ -204,12 +204,24 @@ static void test_record_write() {
 		refs[i] = dagdb_write_data(1, "abcdefghij" + i);
 	}
 	
+	dagdb_handle ref0 = dagdb_find_record(5, (dagdb_record_entry*)refs);
+	EX_ASSERT_EQUAL_INT(ref0, 0);
+	
 	dagdb_handle ref1 = dagdb_write_record(5, (dagdb_record_entry*)refs);
 	CU_ASSERT(ref1>0);
-	
+
+	dagdb_handle ref1b = dagdb_write_record(3, (dagdb_record_entry*)refs);
+	CU_ASSERT(ref1b>0);
+
 	dagdb_handle ref2 = dagdb_write_record(5, (dagdb_record_entry*)refs);
 	EX_ASSERT_EQUAL_INT(ref1, ref2);
 	
+	dagdb_handle ref3 = dagdb_find_record(5, (dagdb_record_entry*)refs);
+	EX_ASSERT_EQUAL_INT(ref1, ref3);
+
+	dagdb_handle ref3b = dagdb_find_record(3, (dagdb_record_entry*)refs);
+	EX_ASSERT_EQUAL_INT(ref1b, ref3b);
+
 	// TODO: perform more checks.
 }
 

@@ -58,8 +58,8 @@ typedef uint64_t dagdb_pointer;
  * The size of this header cannot exceed HEADER_SIZE.
  */
 typedef struct {
-	int32_t magic;
-	int32_t format_version;
+	uint32_t magic;
+	uint32_t format_version;
 	dagdb_pointer root;
 	dagdb_pointer chunks[2*CHUNK_TABLE_SIZE];
 } Header;
