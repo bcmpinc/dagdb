@@ -146,10 +146,10 @@ static void test_data_write() {
 	const int N = sizeof(test_data) / sizeof(test_data[0]);
 	int i;
 	for (i=0; i<N; i++) {
-		dagdb_handle e = dagdb_find_data(strlen(test_data[i]), test_data[i]);
-		dagdb_handle h = dagdb_write_data(strlen(test_data[i]), test_data[i]);
-		dagdb_handle f = dagdb_find_data(strlen(test_data[i]), test_data[i]);
-		dagdb_handle g = dagdb_write_data(strlen(test_data[i]), test_data[i]);
+		dagdb_handle e = dagdb_find_bytes(strlen(test_data[i]), test_data[i]);
+		dagdb_handle h = dagdb_write_bytes(strlen(test_data[i]), test_data[i]);
+		dagdb_handle f = dagdb_find_bytes(strlen(test_data[i]), test_data[i]);
+		dagdb_handle g = dagdb_write_bytes(strlen(test_data[i]), test_data[i]);
 		EX_ASSERT_EQUAL_INT(e,0);
 		CU_ASSERT(h != 0);
 		EX_ASSERT_EQUAL_INT(f,h);
@@ -159,10 +159,10 @@ static void test_data_write() {
 	char nullbytes[] = "data with\0null\0bytes.";
 	int length = 21;
 	{
-		dagdb_handle e = dagdb_find_data(length, nullbytes);
-		dagdb_handle h = dagdb_write_data(length, nullbytes);
-		dagdb_handle f = dagdb_find_data(length, nullbytes);
-		dagdb_handle g = dagdb_write_data(length, nullbytes);
+		dagdb_handle e = dagdb_find_bytes(length, nullbytes);
+		dagdb_handle h = dagdb_write_bytes(length, nullbytes);
+		dagdb_handle f = dagdb_find_bytes(length, nullbytes);
+		dagdb_handle g = dagdb_write_bytes(length, nullbytes);
 		EX_ASSERT_EQUAL_INT(e,0);
 		CU_ASSERT(h != 0);
 		EX_ASSERT_EQUAL_INT(f,h);
@@ -188,7 +188,7 @@ static void test_record_hashing() {
 	dagdb_handle refs[10];
 	int i;
 	for(i=0; i<10; i++) {
-		refs[i] = dagdb_write_data(1, "abcdefghij" + i);
+		refs[i] = dagdb_write_bytes(1, "abcdefghij" + i);
 	}
 	
 	dagdb_record_hash(h, 5, (dagdb_record_entry*)refs);
@@ -201,7 +201,7 @@ static void test_record_write() {
 	dagdb_handle refs[10];
 	int i;
 	for(i=0; i<10; i++) {
-		refs[i] = dagdb_write_data(1, "abcdefghij" + i);
+		refs[i] = dagdb_write_bytes(1, "abcdefghij" + i);
 	}
 	
 	dagdb_handle ref0 = dagdb_find_record(5, (dagdb_record_entry*)refs);

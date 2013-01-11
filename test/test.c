@@ -16,33 +16,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <CUnit/CUnit.h>
-#include <CUnit/Basic.h> 
+#include <unistd.h>
+#include "../src/base.h"
+#include "test.h"
 
-/** @file
- * @brief Entry point of the unit tests.
- */
+int open_new_db() {
+	unlink(DB_FILENAME);
+	return dagdb_load(DB_FILENAME);
+}
 
-extern CU_SuiteInfo api_suites[];
-extern CU_SuiteInfo error_suites[];
-extern CU_SuiteInfo bitarray_suites[];
-extern CU_SuiteInfo mem_suites[];
-extern CU_SuiteInfo base_suites[];
-
-int main() {
-	printf("Testing DAGDB\n");
-	CU_initialize_registry();
-	//CU_basic_set_mode(CU_BRM_SILENT);
-	CU_basic_set_mode(CU_BRM_NORMAL);
-	//CU_basic_set_mode(CU_BRM_VERBOSE);
-	CU_register_suites(error_suites);
-	CU_register_suites(bitarray_suites);
-	CU_register_suites(mem_suites);
-	CU_register_suites(base_suites);
-	CU_register_suites(api_suites);
-	CU_basic_run_tests();
-	int result = CU_get_number_of_tests_failed();
-	CU_cleanup_registry();
-	return result; 
+int close_db() {
+	dagdb_unload();
+	return 0;
 }

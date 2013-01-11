@@ -48,7 +48,7 @@ static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry
 	flip_hash(h);
 }
 
-dagdb_handle dagdb_find_data(uint64_t length, const char* data) {
+dagdb_handle dagdb_find_bytes(uint64_t length, const char* data) {
 	dagdb_hash h;
 	dagdb_data_hash(h, length, data);
 	return dagdb_trie_find(dagdb_root(), h);
@@ -60,7 +60,7 @@ dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items
 	return dagdb_trie_find(dagdb_root(), h);
 }
 
-dagdb_handle dagdb_write_data(uint64_t length, const char* data) {
+dagdb_handle dagdb_write_bytes(uint64_t length, const char* data) {
 	dagdb_hash h;
 	dagdb_data_hash(h, length, data);
 	
@@ -116,6 +116,7 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	if (res<0) goto error;
 
 	for (uint_fast32_t i=0; i<entries; i++) {
+		// TODO: properly handle failures in here.
 		int res;
 		
 		// Obtain the backref trie of the i-th element being refered
@@ -157,3 +158,30 @@ dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items
 	if (record) dagdb_trie_delete(record);
 	return 0;
 }
+
+dagdb_handle_type dagdb_get_handle_type(dagdb_handle item) {
+	switch(dagdb_get_pointer_type(item)) {
+		case DAGDB_TYPE_ELEMENT:
+			switch(dagdb_get_pointer_type(dagdb_element_data(item))) {
+				case DAGDB_TYPE_DATA:
+					return DAGDB_HANDLE_BYTES;
+				case DAGDB_TYPE_TRIE:
+					return DAGDB_HANDLE_RECORD;
+				default:
+					return DAGDB_HANDLE_INVALID;
+			}
+		case DAGDB_TYPE_TRIE:
+			return DAGDB_HANDLE_MAP;
+		default:
+			return DAGDB_HANDLE_INVALID;
+	}
+}
+
+uint64_t dagdb_bytes_length(dagdb_handle h) {
+	if (dagdb_get_pointer_type(h)!=DAGDB_TYPE_ELEMENT) return 0;
+	dagdb_pointer data = dagdb_element_data(h);
+	if (dagdb_get_pointer_type(data)!=DAGDB_TYPE_DATA) return 0;
+	return dagdb_data_length(data);
+}
+
+

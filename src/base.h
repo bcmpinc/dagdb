@@ -18,7 +18,6 @@
 
 #ifndef DAGDB_BASE_H
 #define DAGDB_BASE_H
-#include <stdint.h>
 #include "types.h"
 
 #define DAGDB_KEY_LENGTH 20

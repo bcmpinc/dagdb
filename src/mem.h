@@ -18,7 +18,6 @@
 
 #ifndef DAGDB_MEMORY_H
 #define DAGDB_MEMORY_H
-#include <stdint.h>
 #include "types.h"
 
 /**

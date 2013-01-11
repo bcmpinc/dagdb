@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define DB_FILENAME "test.dagdb"
+
 // Equality checking
 #define EX_ASSERT_EQUAL(actual, expected, type, fmt, name) { \
 	type __a = (actual), __e = (expected); \

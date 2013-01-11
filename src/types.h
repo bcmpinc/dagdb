@@ -18,6 +18,7 @@
 
 #ifndef DAGDB_TYPES_H
 #define DAGDB_TYPES_H
+#include <stdint.h>
 typedef uint64_t dagdb_size;
 typedef uint64_t dagdb_pointer;
 #endif

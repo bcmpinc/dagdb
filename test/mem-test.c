@@ -20,19 +20,7 @@
 #define DAGDB_HARDEN_MALLOC
 #include "../src/mem.c"
 
-#include <sys/stat.h>
 #include "test.h"
-
-#define DB_FILENAME "test.dagdb"
-int open_new_db() {
-	unlink(DB_FILENAME);
-	return dagdb_load(DB_FILENAME);
-}
-
-int close_db() {
-	dagdb_unload();
-	return 0;
-}
 
 /**
  * Set or unset the usage flag of the given range in a slab's bitmap.
