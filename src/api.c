@@ -195,6 +195,7 @@ uint64_t dagdb_bytes_read(uint8_t* buffer, dagdb_handle h, uint64_t offset, uint
 	dagdb_pointer data = dagdb_element_data(h);
 	if (dagdb_get_pointer_type(data)!=DAGDB_TYPE_DATA) return 0;
 	uint64_t length = dagdb_data_length(data);
+	if (offset > length) return 0;
 	if (offset + max_size > length) 
 		max_size = length - offset;
 	memcpy(buffer, dagdb_data_access(data), max_size);

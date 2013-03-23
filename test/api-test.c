@@ -146,14 +146,32 @@ static void test_data_write() {
 	const int N = sizeof(test_data) / sizeof(test_data[0]);
 	int i;
 	for (i=0; i<N; i++) {
-		dagdb_handle e = dagdb_find_bytes(strlen(test_data[i]), test_data[i]);
-		dagdb_handle h = dagdb_write_bytes(strlen(test_data[i]), test_data[i]);
-		dagdb_handle f = dagdb_find_bytes(strlen(test_data[i]), test_data[i]);
-		dagdb_handle g = dagdb_write_bytes(strlen(test_data[i]), test_data[i]);
+		uint64_t length = strlen(test_data[i]);
+		dagdb_handle e = dagdb_find_bytes(length, test_data[i]);
+		dagdb_handle h = dagdb_write_bytes(length, test_data[i]);
+		dagdb_handle f = dagdb_find_bytes(length, test_data[i]);
+		dagdb_handle g = dagdb_write_bytes(length, test_data[i]);
 		EX_ASSERT_EQUAL_INT(e,0);
 		CU_ASSERT(h != 0);
 		EX_ASSERT_EQUAL_INT(f,h);
 		EX_ASSERT_EQUAL_INT(g,h);
+		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(g), DAGDB_HANDLE_BYTES);
+		EX_ASSERT_EQUAL_INT(dagdb_bytes_length(g), length);
+		
+		uint8_t * buffer = malloc(length+11);
+		buffer[length]='#';
+		uint64_t read = dagdb_bytes_read(buffer, g, 0u, length+10);
+		EX_ASSERT_EQUAL_INT(read, length);
+		CU_ASSERT(memcmp(buffer, test_data[i], length)==0);
+		EX_ASSERT_EQUAL_INT(buffer[length],'#');
+		buffer[10]='#';
+		read = dagdb_bytes_read(buffer, g, 10u, 10u);
+		EX_ASSERT_EQUAL_INT(read, length<10?0:length>20?10:length-10);
+		EX_ASSERT_EQUAL_INT(buffer[length],'#');
+		if (length>=20) {
+			CU_ASSERT(memcmp(buffer, test_data[i], 10)==0);
+		}
+		free(buffer);
 	}
 	
 	char nullbytes[] = "data with\0null\0bytes.";
@@ -167,6 +185,8 @@ static void test_data_write() {
 		CU_ASSERT(h != 0);
 		EX_ASSERT_EQUAL_INT(f,h);
 		EX_ASSERT_EQUAL_INT(g,h);
+		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(g), DAGDB_HANDLE_BYTES);
+		EX_ASSERT_EQUAL_INT(dagdb_bytes_length(g), length);
 	}
 }
 
@@ -221,6 +241,9 @@ static void test_record_write() {
 
 	dagdb_handle ref3b = dagdb_find_record(3, (dagdb_record_entry*)refs);
 	EX_ASSERT_EQUAL_INT(ref1b, ref3b);
+	
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3), DAGDB_HANDLE_RECORD);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3b), DAGDB_HANDLE_RECORD);
 
 	// TODO: perform more checks.
 }

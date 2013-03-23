@@ -27,9 +27,7 @@ typedef struct {
 	dagdb_handle value;
 } dagdb_record_entry;
 
-typedef struct {
-	
-} dagdb_iterator;
+typedef struct dagdb_iterator dagdb_iterator;
 
 typedef enum {
 	DAGDB_HANDLE_BYTES,
