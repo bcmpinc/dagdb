@@ -16,15 +16,25 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "api.h"
 #include "base.h"
 #include "error.h"
 
 struct dagdb_iterator {
-	
+	int32_t location;
+	int32_t depth;
+	dagdb_pointer tries[DAGDB_KEY_LENGTH*2];
 };
 
 dagdb_iterator* dagdb_iterator_create(dagdb_handle src)
 {
-	
+	if (dagdb_get_pointer_type(src) != )
+	dagdb_iterator * r = (dagdb_iterator)malloc(sizeof(dagdb_iterator));
+	if (!r) return NULL;
+	r->location = 0;
+	r->depth = 0;
+	r->tries[0] = src;
 }

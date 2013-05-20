@@ -22,6 +22,24 @@
 #include "api.h"
 #include "base.h"
 
+/** @file
+ * Contains the implementation of most of the public api functions.
+ * 
+ * There are two types:
+ * - a handle, used to referece an element or a set in an elements backref;
+ * - an iterator, used to traverse through a record, a map (backref) or a set (backref entry).
+ * 
+ * The iterator implementation is found in iterators.c.
+ * 
+ * There is no way to iterate over the root trie that stores all elements.
+ * The find and write methods should already be sufficient to search the root trie.
+ * 
+ * The function dagdb_select should be used to obtain the value of a specific field 
+ * in a record. This method can also be used on a backref to find a specific set.
+ * 
+ * There is a method that returns a pointer to the backref of an element. 
+ */
+
 /** 
  * @struct dagdb_record_entry 
  * Holds a single entry of a record. 
@@ -57,18 +75,34 @@ static void dagdb_record_hash(dagdb_hash h, long int entries, dagdb_record_entry
 	flip_hash(h);
 }
 
+/**
+ * Obtains a reference to the element storing the given byte array. 
+ * Returns 0 if the element is not found.
+ * @see dagdb_write_bytes
+ */
 dagdb_handle dagdb_find_bytes(uint64_t length, const char* data) {
 	dagdb_hash h;
 	dagdb_data_hash(h, length, data);
 	return dagdb_trie_find(dagdb_root(), h);
 }
 
+/**
+ * Obtains a reference to the element storing the given record.
+ * Returns 0 if the record is not in the database.
+ * @see dagdb_write_record
+ */
 dagdb_handle dagdb_find_record(uint_fast32_t entries, dagdb_record_entry * items) {
 	dagdb_hash h;
 	dagdb_record_hash(h, entries, items);
 	return dagdb_trie_find(dagdb_root(), h);
 }
 
+/**
+ * Returns a reference to an element that stores the given byte array.
+ * The element is created if it does not yet exist in the database.
+ * Returns 0 in case of an error.
+ * @see dagdb_find_bytes
+ */
 dagdb_handle dagdb_write_bytes(uint64_t length, const char* data) {
 	dagdb_hash h;
 	dagdb_data_hash(h, length, data);
@@ -101,6 +135,18 @@ dagdb_handle dagdb_write_bytes(uint64_t length, const char* data) {
 	return 0;
 }
 
+/**
+ * Returns a reference to an element that stores the given record.
+ * The element is created if it does not yet exist in the database.
+ * Returns 0 in case of an error.
+ * 
+ * If the element is created, then this method also creates entries in 
+ * the backref of the values stored in the record.
+ * In the backref of value, the key is searched and an empty trie is created
+ * for key if necessary. Then the created record is added into that trie.
+ * 
+ * @see dagdb_find_bytes
+ */
 dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items) {
 	// Compute the hash of the entry.
 	dagdb_hash h;

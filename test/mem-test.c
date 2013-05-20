@@ -20,6 +20,7 @@
 #define DAGDB_HARDEN_MALLOC
 #include "../src/mem.c"
 
+#include <sys/stat.h>
 #include "test.h"
 
 /**
