@@ -22,6 +22,7 @@
 #include <string.h>
 #include "test.h"
 
+/** Writes the key to the given string buffer. */
 static void convert_hash(dagdb_key key, char* str) {
 	int i;
 	for(i=0; i<DAGDB_KEY_LENGTH; i++) {
@@ -29,6 +30,7 @@ static void convert_hash(dagdb_key key, char* str) {
 	}
 }
 
+/** Parses the L hashes given in str and stores these consecutively in the hash array. */
 static void parse_hashes(char* hash, const char* str, int L) {
 	int j;
 	for(j=0; j<L; j++) {
@@ -131,6 +133,24 @@ static CU_TestInfo test_api_non_io[] = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+
+static void test_handle_types() {
+	dagdb_hash k;
+	dagdb_data_hash(k, 0, "");
+	
+	dagdb_handle d = dagdb_data_create(0,"");
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(d), DAGDB_HANDLE_INVALID);
+	dagdb_handle t = dagdb_trie_create();
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(t), DAGDB_HANDLE_MAP);
+	dagdb_handle el = dagdb_element_create(k, d, t);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(el), DAGDB_HANDLE_BYTES);
+	dagdb_handle kv = dagdb_kvpair_create(el,el);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(kv), DAGDB_HANDLE_INVALID);
+	dagdb_handle el2 = dagdb_element_create(k, kv, t);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(el2), DAGDB_HANDLE_INVALID);
+	dagdb_handle el3 = dagdb_element_create(k, t, t);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(el3), DAGDB_HANDLE_RECORD);
+}
 
 const char * test_data[] = {
 	"",
@@ -249,6 +269,7 @@ static void test_record_write() {
 }
 
 static CU_TestInfo test_api_read_write[] = {
+  { "handle_types", test_handle_types },
   { "data_write", test_data_write },
   { "record_hash", test_record_hashing },
   { "record_write", test_record_write },
