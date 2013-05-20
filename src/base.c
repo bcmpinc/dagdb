@@ -51,7 +51,12 @@ inline dagdb_pointer_type dagdb_get_pointer_type(dagdb_pointer location) {
  * length bytes rounded up to a multiple of S: data
  */
 typedef struct {
+	/** The length of the contained data, rounded up to a multiple of S. */
 	dagdb_size length;
+	/** The contained data.
+	 * This usually is more than the given S bytes. The actual length is given by the 
+	 * length field. 
+	 */
 	char data[S];
 } Data;
 STATIC_ASSERT(sizeof(Data)==2*S,invalid_data_size);
@@ -103,9 +108,15 @@ const void *dagdb_data_access(dagdb_pointer location) {
  * TODO (low): for small data elements, embed data in this element.
  */
 typedef struct {
+	/** The key used to store this element. */
 	unsigned char key[DAGDB_KEY_LENGTH];
+	/** 4 padding bytes. */
 	uint32_t dummy;
+	/** Pointer to the trie containing this element's back references. */
 	dagdb_pointer backref;
+	/** Pointer to the data contained in this element.
+	 * This can be either a data object or, in case of a record, a trie.
+	 */
 	dagdb_pointer data;
 } Element;
 
@@ -164,7 +175,9 @@ void dagdb_element_key(uint8_t * key, dagdb_pointer location)
  * TODO (med): Remove this (and embed them in the tries)
  */
 typedef struct  {
+	/** The key, tag or field name. */
 	dagdb_pointer key;
+	/** The data that is stored under given key. */
 	dagdb_pointer value;
 } KVPair;
 
@@ -231,6 +244,7 @@ typedef uint8_t * key;
  * 
  */
 typedef struct {
+	/** Splits up entries of the trie based on the next nibble of their key. */
 	dagdb_pointer entry[16];
 } Trie;
 

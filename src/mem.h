@@ -55,9 +55,13 @@
  * The size of this header cannot exceed HEADER_SIZE.
  */
 typedef struct {
+	/** 4 bytes that mark this file as a DagDB. */
 	uint32_t magic;
+	/** A number that is used to check if the file and library use the same format. */
 	uint32_t format_version;
+	/** Pointer to the trie containing all elements. */
 	dagdb_pointer root;
+	/** A list of the linked lists containing free chunks of memory. */
 	dagdb_pointer chunks[2*CHUNK_TABLE_SIZE];
 } Header;
 

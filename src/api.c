@@ -22,6 +22,15 @@
 #include "api.h"
 #include "base.h"
 
+/** 
+ * @struct dagdb_record_entry 
+ * Holds a single entry of a record. 
+ * @var dagdb_record_entry::key 
+ * Stores the fieldname of the record entry.
+ * @var dagdb_record_entry::value 
+ * Stores the value of the given field.
+ */
+
 typedef uint8_t dagdb_hash[DAGDB_KEY_LENGTH];
 static void dagdb_data_hash(dagdb_hash h, int length, const void * data) {
 	gcry_md_hash_buffer(GCRY_MD_SHA1, h, data, length);

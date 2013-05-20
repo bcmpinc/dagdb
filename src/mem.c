@@ -81,8 +81,11 @@ STATIC_ASSERT(((S - 1)&S) == 0, size_power_of_two);
  * defined by MIN_CHUNK_SIZE.
  */
 typedef struct {
+	/** Points to the previous chunk of approximately similar size or to the head of the list if this is the first element. */
 	dagdb_pointer prev; 
+	/** Points to the next chunk of approximately similar size or to the head of the list if this is the last element. */
 	dagdb_pointer next;
+	/** The actual size of the chunk. */
 	dagdb_size size;
 } FreeMemoryChunk;
 STATIC_ASSERT(MIN_CHUNK_SIZE%S == 0, min_chunk_size_is_multiple_of_s);
@@ -136,7 +139,9 @@ static dagdb_size dagdb_database_size;
  * A struct for the internal structure of a slab.
  */
 typedef struct {
+	/** The part of a memory slab used for allocation. */
 	dagdb_pointer data[BITMAP_SIZE];
+	/** Stores whether each groups of S in data is in use. */
 	dagdb_bitarray bitmap[DAGDB_BITARRAY_ARRAY_SIZE(BITMAP_SIZE)];
 } MemorySlab;
 STATIC_ASSERT(sizeof(MemorySlab) <= SLAB_SIZE, memory_slab_fits_in_a_slab);
