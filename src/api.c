@@ -257,3 +257,25 @@ uint64_t dagdb_bytes_read(uint8_t* buffer, dagdb_handle h, uint64_t offset, uint
 	return max_size;
 }
 
+/** Returns a handle to the backref of given element. */
+dagdb_handle dagdb_back_reference(dagdb_handle element) {
+	if (dagdb_get_pointer_type(element)!=DAGDB_TYPE_ELEMENT) return 0;
+	dagdb_pointer backref = dagdb_element_backref(element);
+	return backref;
+}
+
+/** Returns a handle to the value of a specific field in a record or to a specific set in a backref. 
+ * Returns 0 in case nothing was found or an error occured.
+ */
+dagdb_handle dagdb_select(dagdb_handle map, dagdb_handle key) {
+	if (dagdb_get_pointer_type(key)!=DAGDB_TYPE_ELEMENT) return 0;
+	if (dagdb_get_pointer_type(map)==DAGDB_TYPE_ELEMENT) {
+		map = dagdb_element_data(map);
+	}
+	if (dagdb_get_pointer_type(map)!=DAGDB_TYPE_TRIE) return 0;
+	dagdb_hash hash;
+	dagdb_element_key(hash, key);
+	return dagdb_trie_find(map, hash);
+}
+
+

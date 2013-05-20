@@ -51,7 +51,7 @@ uint64_t          dagdb_bytes_length(dagdb_handle h);
 uint64_t          dagdb_bytes_read(uint8_t * buffer, dagdb_handle h, uint64_t offset, uint64_t max_size);
 
 // Record/map/set only methods
-dagdb_handle      dagdb_back_reference(dagdb_handle record);
+dagdb_handle      dagdb_back_reference(dagdb_handle element);
 dagdb_handle      dagdb_select(dagdb_handle map, dagdb_handle key);
 dagdb_iterator *  dagdb_iterator_create(dagdb_handle src);
 void              dagdb_iterator_destroy(dagdb_iterator * it);
@@ -59,4 +59,7 @@ void              dagdb_iterator_advance(dagdb_iterator * it);
 dagdb_handle      dagdb_iterator_key(dagdb_iterator * it);
 dagdb_handle      dagdb_iterator_value(dagdb_iterator * it);
 
+
+// TODO: add error reporting to api.
+// TODO: add error reporting to functions in api.
 #endif
