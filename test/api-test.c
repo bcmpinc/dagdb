@@ -150,6 +150,7 @@ static void test_handle_types() {
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(el2), DAGDB_HANDLE_INVALID);
 	dagdb_handle el3 = dagdb_element_create(k, t, t);
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(el3), DAGDB_HANDLE_RECORD);
+	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(dagdb_back_reference(el3)), DAGDB_HANDLE_MAP);
 }
 
 const char * test_data[] = {
@@ -242,6 +243,7 @@ static void test_record_write() {
 	int i;
 	for(i=0; i<10; i++) {
 		refs[i] = dagdb_write_bytes(1, "abcdefghij" + i);
+		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(refs[i]), DAGDB_HANDLE_BYTES);
 	}
 	
 	dagdb_handle ref0 = dagdb_find_record(5, (dagdb_record_entry*)refs);
@@ -265,6 +267,19 @@ static void test_record_write() {
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3), DAGDB_HANDLE_RECORD);
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3b), DAGDB_HANDLE_RECORD);
 
+	for (i=0; i<5; i++) {
+		dagdb_handle key = refs[i*2];
+		dagdb_handle val = dagdb_select(ref1, key);
+		EX_ASSERT_EQUAL_INT(val, refs[i*2+1]);
+		dagdb_handle val2 = dagdb_select(ref3b, key);
+		if (i<3) {
+			EX_ASSERT_EQUAL_INT(val2, refs[i*2+1]);
+		} else {
+			EX_ASSERT_EQUAL_INT(val2, 0);
+		}
+		dagdb_handle val3 = dagdb_select(key, key);
+		EX_ASSERT_EQUAL_INT(val3, 0);
+	}
 	// TODO: perform more checks.
 }
 

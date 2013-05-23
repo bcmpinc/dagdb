@@ -275,7 +275,9 @@ dagdb_handle dagdb_select(dagdb_handle map, dagdb_handle key) {
 	if (dagdb_get_pointer_type(map)!=DAGDB_TYPE_TRIE) return 0;
 	dagdb_hash hash;
 	dagdb_element_key(hash, key);
-	return dagdb_trie_find(map, hash);
+	dagdb_pointer kvpair = dagdb_trie_find(map, hash);
+	if (!kvpair) return 0;
+	return dagdb_kvpair_value(kvpair);
 }
 
 
