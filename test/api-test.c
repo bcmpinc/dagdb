@@ -209,6 +209,8 @@ static void test_data_write() {
 		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(g), DAGDB_HANDLE_BYTES);
 		EX_ASSERT_EQUAL_INT(dagdb_bytes_length(g), length);
 	}
+
+	verify_chunk_table();
 }
 
 static void test_record_hashing() {
@@ -267,6 +269,7 @@ static void test_record_write() {
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3), DAGDB_HANDLE_RECORD);
 	EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(ref3b), DAGDB_HANDLE_RECORD);
 
+	// Select in record checks
 	for (i=0; i<5; i++) {
 		dagdb_handle key = refs[i*2];
 		dagdb_handle val = dagdb_select(ref1, key);
@@ -280,7 +283,32 @@ static void test_record_write() {
 		dagdb_handle val3 = dagdb_select(key, key);
 		EX_ASSERT_EQUAL_INT(val3, 0);
 	}
-	// TODO: perform more checks.
+
+	// Backref checks
+	for (i=0; i<5; i++) {
+		dagdb_handle val = refs[i*2+1];
+		dagdb_handle br = dagdb_back_reference(val);
+		CU_ASSERT(br != 0);
+		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(br), DAGDB_HANDLE_MAP);
+		EX_ASSERT_EQUAL_INT(dagdb_back_reference(br), 0);
+		dagdb_handle key = refs[i*2];
+		dagdb_handle key_br = dagdb_select(br, key);
+		CU_ASSERT(key_br != 0);
+		EX_ASSERT_EQUAL_INT(dagdb_select(key_br, ref1), ref1);
+		if (i<3) {
+			EX_ASSERT_EQUAL_INT(dagdb_select(key_br, ref3b), ref3b);
+		} else {
+			EX_ASSERT_EQUAL_INT(dagdb_select(key_br, ref3b), 0);
+		}
+		int j;
+		for (j=0; j<10; j++) {
+			if (i*2!=j) {
+				EX_ASSERT_EQUAL_INT(dagdb_select(br, refs[j]), 0);
+			}
+		}
+	}
+	
+	verify_chunk_table();
 }
 
 static CU_TestInfo test_api_read_write[] = {

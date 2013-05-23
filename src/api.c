@@ -275,9 +275,12 @@ dagdb_handle dagdb_select(dagdb_handle map, dagdb_handle key) {
 	if (dagdb_get_pointer_type(map)!=DAGDB_TYPE_TRIE) return 0;
 	dagdb_hash hash;
 	dagdb_element_key(hash, key);
-	dagdb_pointer kvpair = dagdb_trie_find(map, hash);
-	if (!kvpair) return 0;
-	return dagdb_kvpair_value(kvpair);
+	dagdb_pointer ret = dagdb_trie_find(map, hash);
+	if (!ret) return 0;
+	if (dagdb_get_pointer_type(ret)==DAGDB_TYPE_KVPAIR) 
+		ret = dagdb_kvpair_value(ret);
+	assert(dagdb_get_pointer_type(ret)==DAGDB_TYPE_ELEMENT || dagdb_get_pointer_type(ret)==DAGDB_TYPE_TRIE);
+	return ret;
 }
 
 
