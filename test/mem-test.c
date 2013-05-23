@@ -162,11 +162,89 @@ static void test_load_failure() {
 	rmdir(DB_FILENAME);
 }
 
+static void test_load_checks() {
+	int r;
+	Header* h;
+	
+	// version corruption
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	h = LOCATE(Header,0);
+	h->format_version=-1; // corrupt header
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "version")!=NULL);
+	dagdb_unload(); // <- again superfluous
+	
+	// magic corruption
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	h = LOCATE(Header,0);
+	h->magic=-1; // corrupt header
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "magic")!=NULL);
+	dagdb_unload(); // <- again superfluous
+
+	// root corruption 1
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	h = LOCATE(Header,0);
+	h->root=DAGDB_TYPE_TRIE; // corrupt header
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "root")!=NULL);
+	dagdb_unload(); // <- again superfluous
+	
+	// root corruption 1
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	h = LOCATE(Header,0);
+	h->root=(1ULL<<40) + DAGDB_TYPE_TRIE; // corrupt header
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "root")!=NULL);
+	dagdb_unload(); // <- again superfluous
+	
+	// root corruption 1
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	h = LOCATE(Header,0);
+	h->root=512; // corrupt header
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "root")!=NULL);
+	dagdb_unload(); // <- again superfluous
+	
+	// size corruption
+	unlink(DB_FILENAME);
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_NO_ERROR 
+	CU_ASSERT(r == 0); 
+	ftruncate(dagdb_database_fd, 1023);
+	dagdb_unload(); 
+	r = dagdb_load(DB_FILENAME); EX_ASSERT_ERROR(DAGDB_ERROR_INVALID_DB); 
+	CU_ASSERT(r == -1); 
+	CU_ASSERT(strstr(dagdb_last_error(), "size")!=NULL);
+	dagdb_unload(); // <- again superfluous
+	
+}
+
 static CU_TestInfo test_loading[] = {
   { "load_init", test_load_init },
   { "load_reload", test_load_reload },
   { "superfluous_unload", test_superfluous_unload },
   { "load_failure", test_load_failure },
+  { "load_checks", test_load_checks },
   CU_TEST_INFO_NULL,
 };
 

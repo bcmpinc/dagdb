@@ -435,6 +435,7 @@ dagdb_pointer dagdb_root()
 		h->root=dagdb_trie_create();
 	}
 	assert(h->root>=HEADER_SIZE);
+	assert(dagdb_get_pointer_type(h->root) == DAGDB_TYPE_TRIE);
 	return h->root;
 }
 

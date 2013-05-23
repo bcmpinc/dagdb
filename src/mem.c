@@ -28,6 +28,7 @@
 #include "mem.h"
 #include "error.h"
 #include "bitarray.h"
+#include "base.h"
 
 /////////////
 // Macro's //
@@ -483,6 +484,7 @@ int dagdb_load(const char *database) {
 		}
 		dagdb_database_size = SLAB_SIZE;
 		dagdb_initialize_header(h);
+		assert(h->root==0);
 	} else {
 		// Check headers.
 		if(h->magic!=DAGDB_MAGIC) {
@@ -492,6 +494,20 @@ int dagdb_load(const char *database) {
 		if(h->format_version!=FORMAT_VERSION) {
 			dagdb_report("File has incompatible format version");
 			goto error;
+		}
+		if(h->root!=0) {
+			if (h->root<HEADER_SIZE) {
+				dagdb_report("File has invalid root pointer");
+				goto error;
+			}
+			if(h->root>=dagdb_database_size) {
+				dagdb_report("File has invalid root pointer");
+				goto error;
+			}
+			if(dagdb_get_pointer_type(h->root) != DAGDB_TYPE_TRIE) {
+				dagdb_report("File has invalid root pointer");
+				goto error;
+			}
 		}
 		dagdb_database_fd = fd;
 	}
