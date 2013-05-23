@@ -8,9 +8,9 @@ Requirements
 ------------
 The database will be used for storing:
 
- - Plain data: reference hash -> data
- - Structured data: reference hash -> key hash -> value hash 
- - Inverse lookup table for structured data: value hash -> key hash -> reference hash set
+ - Plain data: reference element -> data
+ - Structured data: reference element -> key element -> value element
+ - Inverse lookup table for structured data: value element -> key element -> set of reference elements
 
 Requirements for I/O are:
 
@@ -19,15 +19,19 @@ Requirements for I/O are:
 
 Operational requirements:
 
- - Insert given plain data into a given map
- - Insert given record/structured data into a given map
- - Get entry from a given map by given hash
- - Get list of entries in a given map
- - Get list of key hashes pointing to given data
- - Get list of records pointing to given data using given key
+ - Insert given plain data as element into the database
+ - Insert given record/structured data as element into the database
+ - Get value from a given record by given key 
+ - Get list of key and value elements entries in a given record
+ - Get list of key elements pointing to given element
+ - Get list of records pointing to given element using given key
 
 Interface:
 ----------
+For the public api, see api.h.
+
+Warning: the remainder of this section is outdated.
+
 The following data types are exposed as common interface:
 
  - Type Element: Record or Data
@@ -61,26 +65,28 @@ File format
 -----------
 The database stores the following elements:
 
- - A single map hash->data (though multiple is supported as well)
- - Multiple maps hash->map
+ - A single map element->data (though multiple is supported as well)
+ - Multiple maps element->map
 
 The following structures are used to store the data:
 
 1. Element (Content addressable map entry):
 	- hash (20 bytes)
+	- padding (4 bytes)
 	- forward pointer (8 bytes) to data/treap node
 	- reverse pointer (8 bytes) to treap node
 2. Data:
 	- length (8 bytes)
 	- data (length bytes)
-3. Treap node (part of a set/map):
+3. Trie node (part of a set/map):
 	- pointer list (16*8 bytes) to treap node/element
 4. Key value map entry:
 	- key pointer (8 bytes) to element
 	- value pointer (8 bytes) to treap node/element
 
-Each is stored in its own file to allow the creation of repair tools.
-The most significant byte of a pointer is used to determine the file/structure it points to.
+The database is stored in a single file.
+The least significant 3 bytes of a pointer is used to determine what type/structure it points to.
+The pointer must be rounded down to a multiple of 8 before use.
 
 Example
 -------

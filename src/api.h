@@ -62,4 +62,5 @@ dagdb_handle      dagdb_iterator_value(dagdb_iterator * it);
 
 // TODO: add error reporting to api.
 // TODO: add error reporting to functions in api.
+// TODO: delete method for elements never used as key.
 #endif
