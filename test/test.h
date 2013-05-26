@@ -33,7 +33,7 @@
 	CU_assertImplementation(__a==__e, __LINE__, msg, __FILE__, "", CU_FALSE); \
 }
 #define EX_ASSERT_EQUAL_INT(actual, expected) EX_ASSERT_EQUAL(actual, expected, int, "%d", EX_ASSERT_EQUAL_INT)
-#define EX_ASSERT_EQUAL_LONG_HEX(actual, expected) EX_ASSERT_EQUAL(actual, expected, uint64_t, "%lx", EX_ASSERT_EQUAL_LONG_HEX)
+#define EX_ASSERT_EQUAL_LONG_HEX(actual, expected) EX_ASSERT_EQUAL(actual, expected, uint64_t, "%" PRIx64, EX_ASSERT_EQUAL_LONG_HEX)
 
 #define EX_ASSERT_EQUAL_STRING(actual, expected) { \
 	char msg[512];\

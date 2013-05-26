@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "mem.h"
 #include "error.h"
@@ -256,7 +257,7 @@ dagdb_pointer dagdb_malloc(dagdb_size length) {
 	// Traverse the free chunk table, to find an empty spot in one of the already existing slabs.
 	if (length > MAX_CHUNK_SIZE) {
 		dagdb_errno = DAGDB_ERROR_BAD_ARGUMENT;
-		dagdb_report("Cannot allocate %lub, which is larger than the maximum %lub.", length, MAX_CHUNK_SIZE);
+        dagdb_report("Cannot allocate %"PRIu64"b, which is larger than the maximum %ub.", length, MAX_CHUNK_SIZE);
 		return 0;
 	}
 	
@@ -287,12 +288,12 @@ dagdb_pointer dagdb_malloc(dagdb_size length) {
 		dagdb_size new_size = dagdb_database_size + SLAB_SIZE;
 		if (new_size > MAX_SIZE) {
 			dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
-			dagdb_report("Cannot enlarge database of %lub with %ub beyond hard coded limit of %u bytes", dagdb_database_size, SLAB_SIZE, MAX_SIZE);
+            dagdb_report("Cannot enlarge database of %"PRIu64"b with %ub beyond hard coded limit of %u bytes", dagdb_database_size, SLAB_SIZE, MAX_SIZE);
 			return 0;
 		}
 		if (ftruncate(dagdb_database_fd, new_size)) {
 			dagdb_errno = DAGDB_ERROR_DB_TOO_LARGE;
-			dagdb_report_p("Failed to grow database file to %lub", new_size);
+            dagdb_report_p("Failed to grow database file to %"PRIu64"b", new_size);
 			return 0;
 		}
 		dagdb_database_size = new_size;
@@ -409,7 +410,7 @@ void dagdb_free(dagdb_pointer location, dagdb_size length) {
 	if (new_size < dagdb_database_size) {
 		if (ftruncate(dagdb_database_fd, new_size)) {
 			dagdb_errno = DAGDB_ERROR_OTHER;
-			dagdb_report_p("Failed to shrink database file to %lub", new_size);
+            dagdb_report_p("Failed to shrink database file to %"PRIu64"b", new_size);
 		}
 		dagdb_database_size = new_size;
 	}
@@ -464,13 +465,13 @@ int dagdb_load(const char *database) {
 	// Obtain length of database file
 	dagdb_database_size = lseek(fd, 0, SEEK_END);
 	if (dagdb_database_size>MAX_SIZE) {
-		dagdb_report("File exceeds hardcoded size limit %lu > %u", dagdb_database_size, MAX_SIZE);
+        dagdb_report("File exceeds hardcoded size limit %"PRIu64" > %u", dagdb_database_size, MAX_SIZE);
 		goto error;
 	}
 	
 	// database size must be a multiple of SLAB_SIZE
 	if((dagdb_database_size%SLAB_SIZE)!=0) {
-		dagdb_report("File has unexpected size %lu", dagdb_database_size);
+        dagdb_report("File has unexpected size %"PRIu64, dagdb_database_size);
 		goto error;
 	}
 	

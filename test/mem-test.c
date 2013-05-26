@@ -77,7 +77,7 @@ void verify_chunk_table() {
 
 static void print_info() {
 	MemorySlab a;
-	printf("memory slab: %ld entries, %lub used, %lub bitmap, %ldb wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), SLAB_SIZE - sizeof(MemorySlab));
+    printf("memory slab: %"PRIuPTR"d entries, %"PRIuPTR"b used, %"PRIuPTR"b bitmap, %"PRIuPTR"b wasted\n", BITMAP_SIZE, sizeof(a.data), sizeof(a.bitmap), SLAB_SIZE - sizeof(MemorySlab));
 }
 
 static void test_round_up() {
@@ -107,7 +107,7 @@ static void test_chunk_id() {
 			EX_ASSERT_EQUAL_INT(i, MAX_CHUNK_SIZE);
 			EX_ASSERT_EQUAL_INT(i%S, 0);
 			if (i!=MAX_CHUNK_SIZE) {
-				printf("\nMAX_CHUNK_SIZE should be %ld*S\n", i/S);
+                printf("\nMAX_CHUNK_SIZE should be %"PRIuPTR"d*S\n", i/S);
 			}
 			break;
 		}

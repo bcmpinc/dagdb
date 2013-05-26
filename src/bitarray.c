@@ -28,12 +28,12 @@
 	int_fast32_t b1 = start%B, b2 = (start+length)%B; \
 	\
 	if (w1==w2) { \
-		operator(bitarray[w1], ( (1UL<<b2) - (1UL<<b1) )); \
+        operator(bitarray[w1], ( (1ULL<<b2) - (1ULL<<b1) )); \
 	} else { \
-		operator(bitarray[w1], (  0UL      - (1UL<<b1) )); \
-		operator(bitarray[w2], ( (1UL<<b2) -  1UL      )); \
+        operator(bitarray[w1], (  0ULL      - (1ULL<<b1) )); \
+        operator(bitarray[w2], ( (1ULL<<b2) -  1ULL      )); \
 		for (w1++; w1<w2; w1++) { \
-			operator(bitarray[w1], (-1UL)); \
+            operator(bitarray[w1], (-1ULL)); \
 		} \
 	}
 
