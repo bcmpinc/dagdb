@@ -52,8 +52,8 @@ static void test_nibble() {
 }
 
 static CU_TestInfo test_non_io[] = {
-  { "nibble", test_nibble },
-  CU_TEST_INFO_NULL,
+	{ "nibble", test_nibble },
+	CU_TEST_INFO_NULL,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -117,12 +117,12 @@ static void test_trie() {
 }
 
 static CU_TestInfo test_basic_io[] = {
-  { "data", test_data },
-  { "element", test_element },
-  { "kvpair", test_kvpair },
-  { "trie", test_trie },
-  { "verify_chunk_table", verify_chunk_table },
-  CU_TEST_INFO_NULL,
+	{ "data", test_data },
+	{ "element", test_element },
+	{ "kvpair", test_kvpair },
+	{ "trie", test_trie },
+	{ "verify_chunk_table", verify_chunk_table },
+	CU_TEST_INFO_NULL,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,13 +208,115 @@ static void test_trie_recursive_delete() {
 }
 
 static CU_TestInfo test_trie_io[] = {
-  { "insert", test_insert },
-  { "find", test_find },
-  { "remove", test_remove },
-  { "kvpair", test_trie_kvpair },
-  { "recursive_delete", test_trie_recursive_delete },
-  { "verify_chunk_table", verify_chunk_table },
-  CU_TEST_INFO_NULL,
+	{ "insert", test_insert },
+	{ "find", test_find },
+	{ "remove", test_remove },
+	{ "kvpair", test_trie_kvpair },
+	{ "recursive_delete", test_trie_recursive_delete },
+	{ "verify_chunk_table", verify_chunk_table },
+	CU_TEST_INFO_NULL,
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+static void test_iterator_create() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_iterator * it = dagdb_iterator_create(t);
+	CU_ASSERT(it != NULL);
+	dagdb_iterator_destroy(it);
+	verify_chunk_table();
+};
+
+static void test_iterator_create_wrong() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_pointer e = dagdb_element_create(key0, t, t);
+	dagdb_pointer k = dagdb_kvpair_create(e, e);
+	dagdb_iterator * it1 = dagdb_iterator_create(k);
+	CU_ASSERT(it1 == NULL);
+	dagdb_iterator_destroy(it1);
+	
+	dagdb_pointer d = dagdb_data_create(0,"");
+	dagdb_iterator * it2 = dagdb_iterator_create(d);
+	CU_ASSERT(it2 == NULL);
+	dagdb_iterator_destroy(it2);
+	verify_chunk_table();
+};
+
+static void test_iterator_advance_empty() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_iterator * it = dagdb_iterator_create(t);
+	CU_ASSERT(it != NULL);
+	CU_ASSERT(!dagdb_iterator_advance(it));
+	dagdb_iterator_destroy(it);
+	verify_chunk_table();
+};
+
+static void test_iterator_advance_one() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_pointer e = dagdb_element_create(key0, t, t);
+	int i = dagdb_trie_insert(t, e);
+	EX_ASSERT_EQUAL_INT(i, 1);
+	dagdb_iterator * it = dagdb_iterator_create(t);
+	CU_ASSERT(it != NULL);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e);
+	CU_ASSERT(!dagdb_iterator_advance(it));
+	dagdb_iterator_destroy(it);
+	verify_chunk_table();
+};
+
+static void test_iterator_advance_many() {
+	dagdb_pointer t = dagdb_trie_create();
+	dagdb_pointer e0 = dagdb_element_create(key0, t, t);
+	dagdb_pointer e1 = dagdb_element_create(key1, t, t);
+	dagdb_pointer e2 = dagdb_element_create(key2, t, t);
+	dagdb_pointer e3 = dagdb_element_create(key3, t, t);
+	dagdb_pointer e4 = dagdb_element_create(key4, t, t);
+	CU_ASSERT(e0!=0);
+	CU_ASSERT(e1!=0); CU_ASSERT(e1!=e0);
+	CU_ASSERT(e2!=0); CU_ASSERT(e2!=e0); CU_ASSERT(e2!=e1);
+	CU_ASSERT(e3!=0); CU_ASSERT(e3!=e0); CU_ASSERT(e3!=e1); CU_ASSERT(e3!=e2);
+	CU_ASSERT(e4!=0); CU_ASSERT(e4!=e0); CU_ASSERT(e4!=e1); CU_ASSERT(e4!=e2); CU_ASSERT(e4!=e3);
+	int i0 = dagdb_trie_insert(t, e0); EX_ASSERT_NO_ERROR;
+	int i1 = dagdb_trie_insert(t, e1); EX_ASSERT_NO_ERROR;
+	int i2 = dagdb_trie_insert(t, e2); EX_ASSERT_NO_ERROR;
+	int i3 = dagdb_trie_insert(t, e3); EX_ASSERT_NO_ERROR;
+	int i4 = dagdb_trie_insert(t, e4); EX_ASSERT_NO_ERROR;
+	EX_ASSERT_EQUAL_INT(i0, 1);
+	EX_ASSERT_EQUAL_INT(i1, 1);
+	EX_ASSERT_EQUAL_INT(i2, 1);
+	EX_ASSERT_EQUAL_INT(i3, 1);
+	EX_ASSERT_EQUAL_INT(i4, 1);
+	dagdb_iterator * it = dagdb_iterator_create(t);
+	CU_ASSERT(it != NULL);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e2);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e2);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e3);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e3);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e1);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e1);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e0);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e0);
+	CU_ASSERT(dagdb_iterator_advance(it));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it), e4);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it), e4);
+	CU_ASSERT(!dagdb_iterator_advance(it));
+	dagdb_iterator_destroy(it);
+	verify_chunk_table();
+};
+
+static CU_TestInfo test_iterator[] = {
+	{ "iterator_create", test_iterator_create },
+	{ "iterator_create_wrong", test_iterator_create_wrong },
+	{ "iterator_advance_empty", test_iterator_advance_empty },
+	{ "iterator_advance_one", test_iterator_advance_one },
+	{ "iterator_advance_many", test_iterator_advance_many },
+	CU_TEST_INFO_NULL,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -223,5 +325,6 @@ CU_SuiteInfo base_suites[] = {
 	{ "base-non-io",   NULL,        NULL,     test_non_io },
 	{ "base-basic-io", open_new_db, close_db, test_basic_io },
 	{ "base-trie-io",  open_new_db, close_db, test_trie_io },
+	{ "base-iterator", open_new_db, close_db, test_iterator },
 	CU_SUITE_INFO_NULL,
 };

@@ -147,6 +147,8 @@ dagdb_handle dagdb_write_bytes(uint64_t length, const char* data) {
  * for key if necessary. Then the created record is added into that trie.
  * 
  * @see dagdb_find_bytes
+ * 
+ * @TODO: check for duplicate keys.
  */
 dagdb_handle dagdb_write_record(uint_fast32_t entries, dagdb_record_entry* items) {
 	// Compute the hash of the entry.

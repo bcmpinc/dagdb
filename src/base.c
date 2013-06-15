@@ -383,6 +383,7 @@ int dagdb_trie_insert(dagdb_pointer trie, dagdb_pointer pointer)
 				t = t2;
 			}
 			t->entry[n] = pointer;
+			return 1;
 		}
 	}
 	UNREACHABLE;
@@ -453,7 +454,7 @@ struct dagdb_iterator {
 typedef uint64_t dagdb_handle;
 typedef struct dagdb_iterator dagdb_iterator;
 
-/** Creates an iterator for the given record, map or set */
+/** Creates an iterator for the given record, map or set. */
 dagdb_iterator* dagdb_iterator_create(dagdb_handle src) {
 	if (dagdb_get_pointer_type(src) == DAGDB_TYPE_ELEMENT) {
 		src = dagdb_element_data(src); // Record
@@ -475,7 +476,17 @@ void dagdb_iterator_destroy(dagdb_iterator * it) {
 	free(it);
 }
 
+/**
+ * Advances the iterator pointer. 
+ * 
+ * Note that this function must have been called before using
+ * dagdb_iterator_key and dagdb_iterator_value.
+ * 
+ * Returns -1 if the iterator points to the next entry.
+ * Returns 0 if no next entry exists.
+ */
 int dagdb_iterator_advance(dagdb_iterator * it) {
+	assert(it);
 	advance:
 	assert(it->depth>=0);
 	assert(it->depth<DAGDB_KEY_LENGTH*2);
@@ -485,7 +496,7 @@ int dagdb_iterator_advance(dagdb_iterator * it) {
 		// Current trie exhausted, pop one from the stack and continue.
 		assert(it->location[it->depth]==16);
 		it->depth--;
-		if (it->depth<0) return -1;
+		if (it->depth<0) return 0;
 		goto advance; // at most it->depth times.
 	}
 	assert(it->depth>=0);
@@ -503,10 +514,15 @@ int dagdb_iterator_advance(dagdb_iterator * it) {
 		goto advance;
 	}
 	// Found the next non-trie entry.
-	return 0;
+	return -1;
 }
 
 dagdb_handle dagdb_iterator_key(dagdb_iterator * it) {
+	assert(it);
+	assert(it->depth>=0);
+	assert(it->depth<DAGDB_KEY_LENGTH*2);
+	assert(it->location[it->depth]>=0);
+	assert(it->location[it->depth]<16);
 	Trie* t = LOCATE(Trie, it->tries[it->depth]);
 	dagdb_pointer ptr = t->entry[it->location[it->depth]] ;
 	assert(dagdb_get_pointer_type(ptr)!=DAGDB_TYPE_TRIE);
@@ -516,6 +532,11 @@ dagdb_handle dagdb_iterator_key(dagdb_iterator * it) {
 }
 
 dagdb_handle dagdb_iterator_value(dagdb_iterator * it) {
+	assert(it);
+	assert(it->depth>=0);
+	assert(it->depth<DAGDB_KEY_LENGTH*2);
+	assert(it->location[it->depth]>=0);
+	assert(it->location[it->depth]<16);
 	Trie* t = LOCATE(Trie, it->tries[it->depth]);
 	dagdb_pointer ptr = t->entry[it->location[it->depth]] ;
 	assert(dagdb_get_pointer_type(ptr)!=DAGDB_TYPE_TRIE);

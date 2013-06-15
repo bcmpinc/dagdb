@@ -321,7 +321,7 @@ static CU_TestInfo test_api_read_write[] = {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static void test_iterator_create() {
+static void test_iterators() {
 	dagdb_handle refs[10];
 	int i;
 	for(i=0; i<10; i++) {
@@ -334,20 +334,53 @@ static void test_iterator_create() {
 	dagdb_iterator * it2 = dagdb_iterator_create(ref2);
 	dagdb_iterator * it3 = dagdb_iterator_create(refs[0]);
 	dagdb_iterator * it4 = dagdb_iterator_create(dagdb_back_reference(ref1));
+	dagdb_iterator * it5 = dagdb_iterator_create(dagdb_back_reference(refs[1]));
 	
 	CU_ASSERT(it1!=0);
 	CU_ASSERT(it2!=0);
 	CU_ASSERT(it3==0);
 	CU_ASSERT(it4!=0);
-	
-	dagdb_iterator_destroy(it1);
-	dagdb_iterator_destroy(it2);
+	CU_ASSERT(it5!=0);
 	dagdb_iterator_destroy(it3);
+	
+	CU_ASSERT(!dagdb_iterator_advance(it1));
+	CU_ASSERT(!dagdb_iterator_advance(it4));
+	dagdb_iterator_destroy(it1);
 	dagdb_iterator_destroy(it4);
+	
+	CU_ASSERT(dagdb_iterator_advance(it5));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it5), refs[0]);
+	dagdb_iterator * it6 = dagdb_iterator_create(dagdb_iterator_value(it5));
+	CU_ASSERT(!dagdb_iterator_advance(it5));
+	dagdb_iterator_destroy(it5);
+	
+	CU_ASSERT(dagdb_iterator_advance(it6));
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_key(it6), ref2);
+	EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it6), ref2);
+	CU_ASSERT(!dagdb_iterator_advance(it6));
+	dagdb_iterator_destroy(it6);
+	
+	int cnt=0;
+	int sum=0;
+	while (dagdb_iterator_advance(it2)) {
+		for (i=0; i<10; i+=2) {
+			if (dagdb_iterator_key(it2)==refs[i]) {
+				EX_ASSERT_EQUAL_INT(dagdb_iterator_value(it2), refs[i+1]);
+				sum += (1<<i);
+				goto next;
+			}
+		}
+		CU_ASSERT(0);
+		next:
+		cnt++;
+	}
+	EX_ASSERT_EQUAL_INT(cnt, 5);
+	EX_ASSERT_EQUAL_INT(sum, 0x155);
+	dagdb_iterator_destroy(it2);
 }
 
 static CU_TestInfo test_api_iterators[] = {
-	{ "Iterator_create", test_iterator_create },
+	{ "Iterators", test_iterators },
 	CU_TEST_INFO_NULL,
 };
 
