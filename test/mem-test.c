@@ -389,6 +389,7 @@ static void test_mem_shorten_chunks() {
 	filler_resize_reverse(&f, 3*S);
 	filler_resize_reverse(&f, 2*S);
 	filler_shrink_normal(&f);
+	filller_destroy(&f);
 }
 
 static void test_mem_grow_chunks() {
@@ -399,6 +400,7 @@ static void test_mem_grow_chunks() {
 	filler_resize_reverse(&f, 7*S);
 	filler_resize_reverse(&f, 8*S);
 	filler_shrink_normal(&f);
+	filller_destroy(&f);
 }
 
 static CU_TestInfo test_mem[] = {

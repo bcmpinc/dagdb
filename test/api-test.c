@@ -312,17 +312,43 @@ static void test_record_write() {
 }
 
 static CU_TestInfo test_api_read_write[] = {
-  { "handle_types", test_handle_types },
-  { "data_write", test_data_write },
-  { "record_hash", test_record_hashing },
-  { "record_write", test_record_write },
-  CU_TEST_INFO_NULL,
+	{ "handle_types", test_handle_types },
+	{ "data_write", test_data_write },
+	{ "record_hash", test_record_hashing },
+	{ "record_write", test_record_write },
+	CU_TEST_INFO_NULL,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static void test_iterator_create() {
+	dagdb_handle refs[10];
+	int i;
+	for(i=0; i<10; i++) {
+		refs[i] = dagdb_write_bytes(1, "abcdefghij" + i);
+		EX_ASSERT_EQUAL_INT(dagdb_get_handle_type(refs[i]), DAGDB_HANDLE_BYTES);
+	}
+	dagdb_handle ref1 = dagdb_write_record(0, NULL);
+	dagdb_handle ref2 = dagdb_write_record(5, (dagdb_record_entry*)refs);
+	dagdb_iterator * it1 = dagdb_iterator_create(ref1);
+	dagdb_iterator * it2 = dagdb_iterator_create(ref2);
+	dagdb_iterator * it3 = dagdb_iterator_create(refs[0]);
+	dagdb_iterator * it4 = dagdb_iterator_create(dagdb_back_reference(ref1));
+	
+	CU_ASSERT(it1!=0);
+	CU_ASSERT(it2!=0);
+	CU_ASSERT(it3==0);
+	CU_ASSERT(it4!=0);
+	
+	dagdb_iterator_destroy(it1);
+	dagdb_iterator_destroy(it2);
+	dagdb_iterator_destroy(it3);
+	dagdb_iterator_destroy(it4);
+}
+
 static CU_TestInfo test_api_iterators[] = {
-  CU_TEST_INFO_NULL,
+	{ "Iterator_create", test_iterator_create },
+	CU_TEST_INFO_NULL,
 };
 
 ///////////////////////////////////////////////////////////////////////////////

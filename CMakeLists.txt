@@ -39,7 +39,7 @@ target_link_libraries(dagdb ${LIBGCRYPT_LIBRARIES})
 set_property(TARGET dagdb PROPERTY COMPILE_FLAGS "${LIBGCRYPT_CFLAGS} -std=gnu99")
 
 if(CUNIT_FOUND)
-	set(valgrind_cmd valgrind --suppressions=${CMAKE_SOURCE_DIR}/valgrind.supp -q --error-exitcode=42)
+	set(valgrind_cmd valgrind --suppressions=${CMAKE_SOURCE_DIR}/valgrind.supp --error-exitcode=42 --leak-check=full)
 	set(test_libraries ${CUNIT_LIBRARY} ${LIBGCRYPT_LIBRARIES} --coverage)
 	set(test_flags "-I ${CUNIT_INCLUDE_DIR} ${LIBGCRYPT_CFLAGS} --coverage -Wall -Wextra -Wno-unused-parameter -std=gnu99")
 	
